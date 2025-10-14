@@ -1,0 +1,375 @@
+/**
+ * Import API
+ * Importação em massa via Excel/CSV
+ */
+
+const XLSX = require('xlsx');
+const { getDB } = require('./utils/db');
+const { withErrorHandling, validationError } = require('./utils/errorHandler');
+const { verifyToken, requireAdminOrSeparador } = require('./utils/middleware');
+const { validateImportRow, validateFileSize, getClientIP, getUserAgent } = require('./utils/validators');
+const { logInfo, logAudit } = require('./utils/logger');
+
+/**
+ * GET /api/import/template
+ * Gera e retorna template Excel para download
+ */
+async function handleGetTemplate(event) {
+  // Criar workbook
+  const wb = XLSX.utils.book_new();
+
+  // Aba de dados
+  const wsData = XLSX.utils.aoa_to_sheet([
+    ['Material', 'Quantidade', 'Solicitante', 'Urgencia', 'Prazo', 'Inicio Producao', 'Justificativa'],
+    ['Matéria-Prima X123', '100', 'João Silva', 'Normal', '2025-10-20', '2025-10-15', 'Exemplo de justificativa'],
+    ['Componente Y456', '250', 'Maria Santos', 'Urgente', '2025-10-14', '2025-10-13', 'Produção urgente']
+  ]);
+
+  XLSX.utils.book_append_sheet(wb, wsData, 'Solicitações');
+
+  // Aba de instruções
+  const wsInstructions = XLSX.utils.aoa_to_sheet([
+    ['INSTRUÇÕES PARA IMPORTAÇÃO'],
+    [''],
+    ['1. Preencha as colunas conforme o exemplo fornecido'],
+    ['2. Campos obrigatórios: Material, Quantidade, Solicitante'],
+    ['3. Urgencia deve ser: "Normal" ou "Urgente"'],
+    ['4. Datas no formato: AAAA-MM-DD (ex: 2025-10-20)'],
+    ['5. Quantidade deve ser um número inteiro positivo'],
+    ['6. Máximo de 1000 linhas por importação'],
+    [''],
+    ['DESCRIÇÃO DOS CAMPOS:'],
+    [''],
+    ['Material: Descrição do material solicitado (obrigatório)'],
+    ['Quantidade: Quantidade numérica (obrigatório)'],
+    ['Solicitante: Nome do solicitante (obrigatório)'],
+    ['Urgencia: Normal ou Urgente (opcional, padrão: Normal)'],
+    ['Prazo: Data limite para separação (opcional)'],
+    ['Inicio Producao: Data de início da produção (opcional)'],
+    ['Justificativa: Motivo da solicitação (opcional)']
+  ]);
+
+  XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instruções');
+
+  // Converter para buffer
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': 'attachment; filename="template_solicitacoes.xlsx"',
+      'Access-Control-Allow-Origin': '*'
+    },
+    body: buffer.toString('base64'),
+    isBase64Encoded: true
+  };
+}
+
+/**
+ * POST /api/import/validate
+ * Valida arquivo Excel sem importar
+ */
+async function handleValidate(event, sql, user) {
+  const contentType = event.headers['content-type'] || '';
+  
+  if (!contentType.includes('multipart/form-data') && !event.body) {
+    throw validationError('Arquivo não fornecido');
+  }
+
+  // Parsear arquivo do body (base64)
+  let fileBuffer;
+  try {
+    fileBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
+  } catch (error) {
+    throw validationError('Formato de arquivo inválido');
+  }
+
+  // Validar tamanho
+  validateFileSize(fileBuffer.length);
+
+  // Ler Excel
+  let workbook;
+  try {
+    workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+  } catch (error) {
+    throw validationError('Não foi possível ler o arquivo Excel');
+  }
+
+  const firstSheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[firstSheetName];
+  const data = XLSX.utils.sheet_to_json(worksheet);
+
+  if (data.length === 0) {
+    throw validationError('Arquivo vazio');
+  }
+
+  if (data.length > 1000) {
+    throw validationError('Máximo de 1000 linhas por importação');
+  }
+
+  // Validar cada linha
+  const validRows = [];
+  const errors = [];
+
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    const rowNumber = i + 2; // +2 porque linha 1 é cabeçalho e array é 0-based
+
+    const rowErrors = validateImportRow(row, rowNumber);
+    
+    if (rowErrors.length > 0) {
+      errors.push(...rowErrors);
+    } else {
+      validRows.push({
+        rowNumber,
+        material: row.Material || row.material,
+        quantidade: parseInt(row.Quantidade || row.quantidade, 10),
+        solicitante: row.Solicitante || row.solicitante,
+        urgencia: row.Urgencia || row.urgencia || 'Normal',
+        prazo: row.Prazo || row.prazo || null,
+        inicio_producao: row['Inicio Producao'] || row.inicio_producao || null,
+        justificativa: row.Justificativa || row.justificativa || null
+      });
+    }
+  }
+
+  return {
+    statusCode: 200,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      totalRows: data.length,
+      validRows: validRows.length,
+      invalidRows: errors.length,
+      errors,
+      preview: validRows.slice(0, 10) // Primeiras 10 linhas válidas
+    })
+  };
+}
+
+/**
+ * POST /api/import/execute
+ * Executa importação em massa
+ */
+async function handleExecute(event, sql, user) {
+  requireAdminOrSeparador(user);
+
+  const contentType = event.headers['content-type'] || '';
+  
+  if (!contentType.includes('multipart/form-data') && !event.body) {
+    throw validationError('Arquivo não fornecido');
+  }
+
+  // Parsear arquivo
+  let fileBuffer;
+  try {
+    fileBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
+  } catch (error) {
+    throw validationError('Formato de arquivo inválido');
+  }
+
+  validateFileSize(fileBuffer.length);
+
+  // Ler Excel
+  let workbook;
+  try {
+    workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+  } catch (error) {
+    throw validationError('Não foi possível ler o arquivo Excel');
+  }
+
+  const firstSheetName = workbook.SheetNames[0];
+  const worksheet = workbook.Sheets[firstSheetName];
+  const data = XLSX.utils.sheet_to_json(worksheet);
+
+  if (data.length === 0) {
+    throw validationError('Arquivo vazio');
+  }
+
+  if (data.length > 1000) {
+    throw validationError('Máximo de 1000 linhas por importação');
+  }
+
+  // Iniciar batch de importação
+  const [batch] = await sql`
+    INSERT INTO import_batches 
+      (user_id, filename, total_rows, status)
+    VALUES 
+      (${user.userId}, 'import.xlsx', ${data.length}, 'processing')
+    RETURNING id
+  `;
+
+  const batchId = batch.id;
+  let successCount = 0;
+  let errorCount = 0;
+  const importErrors = [];
+
+  try {
+    // Processar cada linha em uma transação
+    await sql.begin(async (tx) => {
+      for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const rowNumber = i + 2;
+
+        try {
+          const rowErrors = validateImportRow(row, rowNumber);
+          
+          if (rowErrors.length > 0) {
+            throw new Error(rowErrors.join('; '));
+          }
+
+          // Buscar ou criar solicitante
+          const solicitanteName = row.Solicitante || row.solicitante;
+          let [solicitante] = await tx`
+            SELECT id FROM users 
+            WHERE nome ILIKE ${solicitanteName} 
+            AND role = 'solicitante' 
+            AND deleted_at IS NULL
+          `;
+
+          // Se não encontrar, criar usuário temporário (apenas admin pode)
+          if (!solicitante && user.role === 'admin') {
+            const tempEmail = `${solicitanteName.toLowerCase().replace(/\s+/g, '.')}@temp.com`;
+            [solicitante] = await tx`
+              INSERT INTO users (email, password_hash, nome, role, ativo)
+              VALUES (${tempEmail}, 'temp', ${solicitanteName}, 'solicitante', false)
+              ON CONFLICT (email) DO UPDATE SET nome = EXCLUDED.nome
+              RETURNING id
+            `;
+          }
+
+          if (!solicitante) {
+            throw new Error(`Solicitante "${solicitanteName}" não encontrado`);
+          }
+
+          // Criar solicitação
+          const [request] = await tx`
+            INSERT INTO material_requests 
+              (material, quantidade, justificativa, solicitante_id, urgencia, prazo, inicio_producao, status, created_by)
+            VALUES 
+              (${row.Material || row.material},
+               ${parseInt(row.Quantidade || row.quantidade, 10)},
+               ${row.Justificativa || row.justificativa || null},
+               ${solicitante.id},
+               ${row.Urgencia || row.urgencia || 'Normal'},
+               ${row.Prazo || row.prazo || null},
+               ${row['Inicio Producao'] || row.inicio_producao || null},
+               'Pendente',
+               ${user.userId})
+            RETURNING id
+          `;
+
+          // Registrar no histórico
+          await tx`
+            INSERT INTO request_history 
+              (request_id, user_id, campo_alterado, valor_novo, acao)
+            VALUES 
+              (${request.id}, ${user.userId}, 'importação', 'via Excel batch ${batchId}', 'criado')
+          `;
+
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          importErrors.push({
+            row: rowNumber,
+            error: error.message
+          });
+          // Continue com próxima linha (não interrompe transação)
+        }
+      }
+    });
+
+    // Atualizar batch como completo
+    await sql`
+      UPDATE import_batches
+      SET 
+        status = 'completed',
+        success_rows = ${successCount},
+        error_rows = ${errorCount},
+        errors_json = ${JSON.stringify(importErrors)}::jsonb,
+        completed_at = CURRENT_TIMESTAMP
+      WHERE id = ${batchId}
+    `;
+
+    // Log de auditoria
+    await logAudit(
+      sql,
+      user.userId,
+      'import_executed',
+      'import_batches',
+      batchId,
+      { successCount, errorCount, totalRows: data.length },
+      getClientIP(event),
+      getUserAgent(event)
+    );
+
+    logInfo('import_completed', { batchId, successCount, errorCount, userId: user.userId });
+
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        success: true,
+        batchId,
+        totalRows: data.length,
+        successCount,
+        errorCount,
+        errors: importErrors
+      })
+    };
+  } catch (error) {
+    // Marcar batch como falhado
+    await sql`
+      UPDATE import_batches
+      SET 
+        status = 'failed',
+        errors_json = ${JSON.stringify([{ error: error.message }])}::jsonb,
+        completed_at = CURRENT_TIMESTAMP
+      WHERE id = ${batchId}
+    `;
+
+    throw error;
+  }
+}
+
+/**
+ * Handler principal
+ */
+exports.handler = withErrorHandling(async (event, context) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Content-Type': 'application/json'
+  };
+
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
+  }
+
+  const path = event.path.replace('/.netlify/functions/import', '').replace('/api/import', '') || '/';
+
+  // Template é público
+  if (path === '/template' && event.httpMethod === 'GET') {
+    return await handleGetTemplate(event);
+  }
+
+  // Outras rotas requerem autenticação
+  const sql = getDB();
+  const user = await verifyToken(event, sql);
+
+  if (path === '/validate' && event.httpMethod === 'POST') {
+    return await handleValidate(event, sql, user);
+  }
+
+  if (path === '/execute' && event.httpMethod === 'POST') {
+    return await handleExecute(event, sql, user);
+  }
+
+  return {
+    statusCode: 404,
+    headers,
+    body: JSON.stringify({ error: 'Rota não encontrada' })
+  };
+});
+

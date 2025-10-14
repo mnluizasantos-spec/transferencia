@@ -12,7 +12,7 @@ pnpm-lock.yaml
 
 # Netlify
 .netlify/
-netlify/
+# netlify/ (comentado - precisamos das funções)
 
 # Logs
 logs/
