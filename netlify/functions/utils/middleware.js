@@ -61,9 +61,7 @@ async function verifyToken(event, sql) {
       throw authenticationError('Usuário não encontrado');
     }
 
-    if (!user.ativo) {
-      throw authenticationError('Usuário desativado');
-    }
+    // Verificar se conta não está deletada (ativo é verificado via deleted_at)
 
     return {
       userId: decoded.userId,

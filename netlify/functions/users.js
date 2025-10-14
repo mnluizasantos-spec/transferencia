@@ -19,11 +19,11 @@ async function handleList(event, sql, user) {
 
   const params = event.queryStringParameters || {};
   const role = params.role || null;
-  const ativo = params.ativo !== undefined ? params.ativo === 'true' : null;
+  // Removido filtro por ativo - usar apenas deleted_at
 
   let query = sql`
     SELECT 
-      id, email, nome, role, ativo, last_login, created_at, updated_at
+      id, email, nome, role, last_login, created_at, updated_at
     FROM users
     WHERE deleted_at IS NULL
   `;
@@ -32,9 +32,7 @@ async function handleList(event, sql, user) {
     query = sql`${query} AND role = ${role}`;
   }
 
-  if (ativo !== null) {
-    query = sql`${query} AND ativo = ${ativo}`;
-  }
+  // Filtro por ativo removido - usar apenas deleted_at
 
   query = sql`${query} ORDER BY created_at DESC`;
 
@@ -59,7 +57,7 @@ async function handleGet(event, sql, user) {
 
   const [userData] = await sql`
     SELECT 
-      id, email, nome, role, ativo, last_login, failed_login_attempts, created_at, updated_at
+      id, email, nome, role, last_login, failed_login_attempts, created_at, updated_at
     FROM users
     WHERE id = ${targetId} AND deleted_at IS NULL
   `;
@@ -99,9 +97,9 @@ async function handleCreate(event, sql, user) {
 
   // Criar usuário
   const [newUser] = await sql`
-    INSERT INTO users (email, password_hash, nome, role, ativo, force_password_change)
-    VALUES (${validatedData.email}, ${passwordHash}, ${validatedData.nome}, ${validatedData.role}, true, true)
-    RETURNING id, email, nome, role, ativo, created_at
+    INSERT INTO users (email, password_hash, nome, role, force_password_change)
+    VALUES (${validatedData.email}, ${passwordHash}, ${validatedData.nome}, ${validatedData.role}, true)
+    RETURNING id, email, nome, role, created_at
   `;
 
   await logAudit(
@@ -147,7 +145,7 @@ async function handleUpdate(event, sql, user) {
   // Usuários normais só podem alterar alguns campos
   let allowedFields = ['nome'];
   if (user.role === 'admin') {
-    allowedFields = ['nome', 'email', 'role', 'ativo'];
+    allowedFields = ['nome', 'email', 'role'];
   }
 
   // Filtrar apenas campos permitidos
@@ -198,7 +196,7 @@ async function handleUpdate(event, sql, user) {
     UPDATE users
     SET ${sql(validatedData)}
     WHERE id = ${targetId}
-    RETURNING id, email, nome, role, ativo, updated_at
+    RETURNING id, email, nome, role, updated_at
   `;
 
   await logAudit(
@@ -249,7 +247,7 @@ async function handleDelete(event, sql, user) {
   // Soft delete
   await sql`
     UPDATE users
-    SET deleted_at = CURRENT_TIMESTAMP, ativo = false
+    SET deleted_at = CURRENT_TIMESTAMP
     WHERE id = ${targetId}
   `;
 
@@ -291,7 +289,7 @@ async function handleReactivate(event, sql, user) {
 
   await sql`
     UPDATE users
-    SET ativo = true, deleted_at = NULL
+    SET deleted_at = NULL
     WHERE id = ${targetId}
   `;
 

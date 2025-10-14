@@ -170,7 +170,7 @@ async function handleLogout(event, sql, user) {
  */
 async function handleMe(event, sql, user) {
   const [userData] = await sql`
-    SELECT id, email, nome, role, ativo, last_login, created_at
+    SELECT id, email, nome, role, last_login, created_at
     FROM users 
     WHERE id = ${user.userId} AND deleted_at IS NULL
   `;
@@ -220,7 +220,7 @@ async function handleRegister(event, sql, user) {
       ${validatedData.role},
       true
     )
-    RETURNING id, email, nome, role, ativo, created_at
+    RETURNING id, email, nome, role, created_at
   `;
 
   await logAudit(
