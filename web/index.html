@@ -94,6 +94,10 @@
                     <option value="Normal">Normal</option>
                 </select>
                 <button class="btn btn-secondary btn-small" onclick="downloadTemplate()">📥 Template Excel</button>
+                <label class="btn btn-info btn-small" style="margin: 0 10px;">
+                    📤 Importar Excel
+                    <input type="file" id="import-file" accept=".xlsx,.xls" style="display: none;" onchange="handleImportFile(event)">
+                </label>
                 <button class="btn btn-success" onclick="openRequestModal()">+ Nova Solicitação</button>
             </div>
         </div>
@@ -233,10 +237,10 @@
             const user = getCurrentUser();
             if (!user) return;
 
-            document.getElementById('user-name').textContent = user.nome;
+            document.getElementById('user-name').textContent = user.name;
             document.getElementById('user-role').textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
             
-            const initials = user.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
             document.getElementById('user-avatar').textContent = initials;
         }
 
@@ -537,6 +541,64 @@
                 await printPickingList(Array.from(selectedIds));
             } catch (error) {
                 alert(`Erro ao gerar impressão: ${error.message}`);
+            }
+        };
+
+        window.handleImportFile = async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validar tipo de arquivo
+            if (!file.name.match(/\.(xlsx|xls)$/)) {
+                alert('Por favor, selecione um arquivo Excel (.xlsx ou .xls)');
+                return;
+            }
+
+            // Validar tamanho (máximo 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Arquivo muito grande. Máximo 5MB.');
+                return;
+            }
+
+            if (!confirm(`Importar arquivo "${file.name}"? Esta ação criará novas solicitações.`)) {
+                event.target.value = ''; // Limpar seleção
+                return;
+            }
+
+            try {
+                // Converter arquivo para base64
+                const base64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+
+                // Enviar para API
+                const response = await fetch('/.netlify/functions/import/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                    },
+                    body: JSON.stringify({ file: base64, filename: file.name })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    alert(`Importação concluída!\nSucessos: ${result.successCount}\nErros: ${result.errorCount}`);
+                    if (result.errors && result.errors.length > 0) {
+                        console.log('Erros de importação:', result.errors);
+                    }
+                    loadRequests(); // Recarregar lista
+                } else {
+                    throw new Error(result.error || 'Erro na importação');
+                }
+            } catch (error) {
+                alert(`Erro na importação: ${error.message}`);
+            } finally {
+                event.target.value = ''; // Limpar seleção
             }
         };
 

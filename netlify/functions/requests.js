@@ -31,10 +31,10 @@ async function handleList(event, sql, user) {
   let query = sql`
     SELECT 
       mr.*,
-      u_solicitante.nome as solicitante_nome,
+      u_solicitante.name as solicitante_nome,
       u_solicitante.email as solicitante_email
     FROM material_requests mr
-    JOIN users u_solicitante ON mr.solicitante_id = u_solicitante.id
+    LEFT JOIN users u_solicitante ON mr.created_by = u_solicitante.id
     WHERE mr.deleted_at IS NULL
   `;
 
@@ -49,21 +49,22 @@ async function handleList(event, sql, user) {
     conditions.push(sql`mr.urgencia = ${params.urgencia}`);
   }
 
-  if (params.solicitante_id) {
-    conditions.push(sql`mr.solicitante_id = ${parseInt(params.solicitante_id, 10)}`);
+  if (params.solicitante) {
+    conditions.push(sql`mr.requester_name ILIKE ${'%' + params.solicitante + '%'}`);
   }
 
   if (params.search) {
     const searchTerm = `%${params.search}%`;
     conditions.push(sql`(
-      mr.material ILIKE ${searchTerm} OR 
-      u_solicitante.nome ILIKE ${searchTerm}
+      mr.material_code ILIKE ${searchTerm} OR 
+      mr.material_description ILIKE ${searchTerm} OR
+      mr.requester_name ILIKE ${searchTerm}
     )`);
   }
 
   // Solicitantes só veem suas próprias solicitações
   if (user.role === 'solicitante') {
-    conditions.push(sql`mr.solicitante_id = ${user.userId}`);
+    conditions.push(sql`mr.requester_name = ${user.name}`);
   }
 
   // Construir query com condições
@@ -142,21 +143,16 @@ async function handleCreate(event, sql, user) {
   // Validar dados
   const validatedData = validateRequestData(data, false);
 
-  // Se usuário é solicitante, forçar seu próprio ID
-  if (user.role === 'solicitante') {
-    validatedData.solicitante_id = user.userId;
-  }
-
   // Usar transação para garantir atomicidade
   const result = await sql.begin(async (tx) => {
     // 1. Criar solicitação
     const [newRequest] = await tx`
       INSERT INTO material_requests 
-        (material, quantidade, justificativa, solicitante_id, urgencia, prazo, inicio_producao, status, created_by)
+        (material_code, material_description, quantidade, justificativa, requester_name, urgencia, deadline, production_start_date, status, created_by)
       VALUES 
-        (${validatedData.material}, ${validatedData.quantidade}, ${validatedData.justificativa}, 
-         ${validatedData.solicitante_id}, ${validatedData.urgencia}, ${validatedData.prazo}, 
-         ${validatedData.inicio_producao}, ${validatedData.status}, ${user.userId})
+        (${validatedData.material_code}, ${validatedData.material_description}, ${validatedData.quantidade}, 
+         ${validatedData.justificativa}, ${validatedData.requester_name}, ${validatedData.urgencia}, 
+         ${validatedData.deadline}, ${validatedData.production_start_date}, 'Pendente', ${user.userId})
       RETURNING *
     `;
 

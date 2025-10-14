@@ -114,11 +114,19 @@ function validateUserData(data, isUpdate = false) {
 function validateRequestData(data, isUpdate = false) {
   const errors = [];
 
-  if (!isUpdate || data.material !== undefined) {
-    if (!data.material || data.material.trim() === '') {
-      errors.push('Material é obrigatório');
-    } else if (data.material.length > 500) {
-      errors.push('Material deve ter no máximo 500 caracteres');
+  if (!isUpdate || data.material_code !== undefined) {
+    if (!data.material_code || data.material_code.trim() === '') {
+      errors.push('Código do material é obrigatório');
+    } else if (data.material_code.length > 100) {
+      errors.push('Código do material deve ter no máximo 100 caracteres');
+    }
+  }
+
+  if (!isUpdate || data.material_description !== undefined) {
+    if (!data.material_description || data.material_description.trim() === '') {
+      errors.push('Descrição do material é obrigatória');
+    } else if (data.material_description.length > 1000) {
+      errors.push('Descrição do material deve ter no máximo 1000 caracteres');
     }
   }
 
@@ -130,11 +138,11 @@ function validateRequestData(data, isUpdate = false) {
     }
   }
 
-  if (!isUpdate || data.solicitante_id !== undefined) {
-    if (!isUpdate && !data.solicitante_id) {
-      errors.push('Solicitante é obrigatório');
-    } else if (data.solicitante_id && !isPositiveInteger(data.solicitante_id)) {
-      errors.push('ID do solicitante inválido');
+  if (!isUpdate || data.requester_name !== undefined) {
+    if (!data.requester_name || data.requester_name.trim() === '') {
+      errors.push('Nome do solicitante é obrigatório');
+    } else if (data.requester_name.length > 255) {
+      errors.push('Nome do solicitante deve ter no máximo 255 caracteres');
     }
   }
 
@@ -146,11 +154,11 @@ function validateRequestData(data, isUpdate = false) {
     errors.push('Status inválido');
   }
 
-  if (data.prazo && !isValidDate(data.prazo)) {
+  if (data.deadline && !isValidDate(data.deadline)) {
     errors.push('Prazo deve ser uma data válida');
   }
 
-  if (data.inicio_producao && !isValidDate(data.inicio_producao)) {
+  if (data.production_start_date && !isValidDate(data.production_start_date)) {
     errors.push('Início de produção deve ser uma data válida');
   }
 
@@ -163,13 +171,14 @@ function validateRequestData(data, isUpdate = false) {
   }
 
   return {
-    material: data.material ? sanitizeString(data.material) : undefined,
+    material_code: data.material_code ? sanitizeString(data.material_code) : undefined,
+    material_description: data.material_description ? sanitizeString(data.material_description) : undefined,
     quantidade: data.quantidade ? parseInt(data.quantidade, 10) : undefined,
-    solicitante_id: data.solicitante_id ? parseInt(data.solicitante_id, 10) : undefined,
+    requester_name: data.requester_name ? sanitizeString(data.requester_name) : undefined,
     urgencia: data.urgencia || 'Normal',
     status: data.status || 'Pendente',
-    prazo: data.prazo || null,
-    inicio_producao: data.inicio_producao || null,
+    deadline: data.deadline || null,
+    production_start_date: data.production_start_date || null,
     justificativa: data.justificativa ? sanitizeString(data.justificativa) : null
   };
 }
