@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS users (
   nome VARCHAR(255) NOT NULL, -- Campo principal para nome
   name VARCHAR(255), -- Campo alternativo (usado pelo JWT/auth)
   role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'separador', 'solicitante')),
-  ativo BOOLEAN DEFAULT true,
+  -- NOTA: Coluna 'ativo' removida - controle de status via deleted_at
   force_password_change BOOLEAN DEFAULT false,
   last_login TIMESTAMP,
   failed_login_attempts INTEGER DEFAULT 0,
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Índices para users
 CREATE INDEX idx_users_email ON users(email) WHERE deleted_at IS NULL;
-CREATE INDEX idx_users_role ON users(role) WHERE deleted_at IS NULL AND ativo = true;
+CREATE INDEX idx_users_role ON users(role) WHERE deleted_at IS NULL;
 
 -- ============================================================================
 -- TABELA DE SOLICITAÇÕES DE MATERIAL
@@ -141,14 +141,14 @@ CREATE TABLE IF NOT EXISTS sessions (
   token_hash VARCHAR(255) NOT NULL,
   expires_at TIMESTAMP NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  revoked_at TIMESTAMP,
+  -- NOTA: Coluna 'revoked_at' removida - não existe no banco real
   ip_address VARCHAR(45),
   user_agent TEXT
 );
 
 -- Índices para sessions
 CREATE INDEX idx_sessions_user ON sessions(user_id);
-CREATE INDEX idx_sessions_token ON sessions(token_hash) WHERE revoked_at IS NULL;
+CREATE INDEX idx_sessions_token ON sessions(token_hash);
 CREATE INDEX idx_sessions_expires ON sessions(expires_at);
 
 -- ============================================================================
@@ -204,8 +204,7 @@ CREATE OR REPLACE FUNCTION clean_expired_sessions()
 RETURNS TRIGGER AS $$
 BEGIN
     DELETE FROM sessions 
-    WHERE expires_at < CURRENT_TIMESTAMP 
-    AND revoked_at IS NULL;
+    WHERE expires_at < CURRENT_TIMESTAMP;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
