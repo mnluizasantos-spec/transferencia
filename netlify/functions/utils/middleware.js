@@ -38,7 +38,6 @@ async function verifyToken(event, sql) {
       SELECT * FROM sessions 
       WHERE token_hash = ${tokenHash}
       AND user_id = ${decoded.userId}
-      AND revoked_at IS NULL
       AND expires_at > CURRENT_TIMESTAMP
     `;
 
