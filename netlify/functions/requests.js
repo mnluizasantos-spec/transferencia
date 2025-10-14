@@ -26,27 +26,43 @@ async function logHistory(sql, requestId, userId, campo, valorAnterior, valorNov
  * Lista solicitações com filtros
  */
 async function handleList(event, sql, user) {
-  const params = event.queryStringParameters || {};
-  
-  // Query simplificada
-  const requests = await sql`
-    SELECT 
-      mr.*,
-      mr.requester_name as solicitante_nome
-    FROM material_requests mr
-    WHERE mr.deleted_at IS NULL
-    ${user.role === 'solicitante' ? sql`AND mr.requester_name = ${user.name}` : sql``}
-    ORDER BY 
-      CASE WHEN mr.urgencia = 'Urgente' THEN 0 ELSE 1 END,
-      mr.created_at DESC
-    LIMIT 100
-  `;
-
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requests)
-  };
+  try {
+    console.log('Requests List - Iniciando', { userRole: user.role, userName: user.name });
+    
+    console.log('Requests List - Executando query');
+    
+    const userName = user.name || user.nome || 'Unknown';
+    
+    const requests = await sql`
+      SELECT 
+        id,
+        material_code,
+        material_description,
+        quantidade,
+        unidade,
+        requester_name,
+        urgencia,
+        status,
+        created_at,
+        updated_at
+      FROM material_requests
+      WHERE deleted_at IS NULL
+      ${user.role === 'solicitante' ? sql`AND requester_name = ${userName}` : sql``}
+      ORDER BY created_at DESC
+      LIMIT 100
+    `;
+    
+    console.log('Requests List - Resultado', { count: requests.length });
+    
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requests)
+    };
+  } catch (error) {
+    console.error('Requests List - Erro:', error);
+    throw error;
+  }
 }
 
 /**

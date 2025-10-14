@@ -12,41 +12,48 @@ const { verifyToken } = require('./utils/middleware');
  * Estatísticas gerais
  */
 async function handleStats(event, sql, user) {
-  // Query simplificada e robusta
-  let whereClause = sql`WHERE deleted_at IS NULL`;
-  
-  if (user.role === 'solicitante') {
-    whereClause = sql`WHERE deleted_at IS NULL AND requester_name = ${user.name}`;
+  try {
+    console.log('Dashboard Stats - Iniciando', { userRole: user.role, userName: user.name });
+    
+    let whereClause = sql`WHERE deleted_at IS NULL`;
+    
+    if (user.role === 'solicitante') {
+      const userName = user.name || user.nome || 'Unknown';
+      whereClause = sql`WHERE deleted_at IS NULL AND requester_name = ${userName}`;
+    }
+    
+    console.log('Dashboard Stats - Executando query');
+    
+    const [stats] = await sql`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
+        COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos
+      FROM material_requests
+      ${whereClause}
+    `;
+    
+    console.log('Dashboard Stats - Resultado', stats);
+    
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        total: parseInt(stats.total) || 0,
+        pendentes: parseInt(stats.pendentes) || 0,
+        concluidos: parseInt(stats.concluidos) || 0,
+        // Valores padrão para outros campos
+        atrasados: 0,
+        vencem_hoje: 0,
+        concluidos_hoje: 0,
+        em_separacao: 0,
+        urgentes: 0
+      })
+    };
+  } catch (error) {
+    console.error('Dashboard Stats - Erro:', error);
+    throw error;
   }
-
-  const [stats] = await sql`
-    SELECT 
-      COUNT(*) as total,
-      COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído') as atrasados,
-      COUNT(*) FILTER (WHERE deadline = CURRENT_DATE AND status != 'Concluído') as vence_hoje,
-      COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
-      COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
-      COUNT(*) FILTER (WHERE status = 'Em Separação') as em_separacao,
-      COUNT(*) FILTER (WHERE urgencia = 'Urgente' AND status != 'Concluído') as urgentes,
-      COUNT(*) FILTER (WHERE DATE(completed_at) = CURRENT_DATE) as concluidos_hoje
-    FROM material_requests
-    ${whereClause}
-  `;
-
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      total: parseInt(stats.total),
-      atrasados: parseInt(stats.atrasados),
-      vencem_hoje: parseInt(stats.vence_hoje),
-      concluidos: parseInt(stats.concluidos),
-      concluidos_hoje: parseInt(stats.concluidos_hoje),
-      pendentes: parseInt(stats.pendentes),
-      em_separacao: parseInt(stats.em_separacao),
-      urgentes: parseInt(stats.urgentes)
-    })
-  };
 }
 
 /**

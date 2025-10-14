@@ -66,7 +66,8 @@ async function verifyToken(event, sql) {
       userId: decoded.userId,
       email: decoded.email,
       role: decoded.role,
-      nome: decoded.nome
+      name: decoded.name || decoded.nome,
+      nome: decoded.name || decoded.nome
     };
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
