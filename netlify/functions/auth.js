@@ -24,7 +24,7 @@ function generateToken(user) {
       userId: user.id,
       email: user.email,
       role: user.role,
-      nome: user.nome
+      name: user.name
     },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
@@ -53,11 +53,16 @@ async function handleLogin(event, sql) {
     throw validationError('Email inválido');
   }
 
-  // Buscar usuário
+  // Buscar usuário com role
   const [user] = await sql`
-    SELECT * FROM users 
-    WHERE email = ${email.toLowerCase()} 
-    AND deleted_at IS NULL
+    SELECT 
+      u.*,
+      r.name as role
+    FROM users u
+    JOIN user_roles ur ON u.id = ur.user_id
+    JOIN roles r ON ur.role_id = r.id
+    WHERE u.email = ${email.toLowerCase()} 
+    AND u.deleted_at IS NULL
   `;
 
   if (!user) {
@@ -65,14 +70,8 @@ async function handleLogin(event, sql) {
     throw authenticationError('Email ou senha inválidos');
   }
 
-  // Verificar se está bloqueado
-  if (user.locked_until && new Date(user.locked_until) > new Date()) {
-    const minutesRemaining = Math.ceil((new Date(user.locked_until) - new Date()) / 60000);
-    throw authenticationError(`Conta bloqueada. Tente novamente em ${minutesRemaining} minutos.`);
-  }
-
-  // Verificar se está ativo
-  if (!user.ativo) {
+  // Verificar se está ativo (deleted_at é NULL)
+  if (user.deleted_at) {
     throw authenticationError('Conta desativada. Entre em contato com o administrador.');
   }
 
@@ -80,45 +79,11 @@ async function handleLogin(event, sql) {
   const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
   if (!isPasswordValid) {
-    // Incrementar tentativas falhadas
-    const newAttempts = (user.failed_login_attempts || 0) + 1;
-    const shouldLock = newAttempts >= MAX_LOGIN_ATTEMPTS;
-
-    await sql`
-      UPDATE users 
-      SET 
-        failed_login_attempts = ${newAttempts},
-        locked_until = ${shouldLock ? new Date(Date.now() + LOCKOUT_DURATION * 60000) : null}
-      WHERE id = ${user.id}
-    `;
-
-    await logAudit(
-      sql,
-      user.id,
-      'login_failed',
-      'users',
-      user.id,
-      { reason: 'invalid_password', attempts: newAttempts },
-      getClientIP(event),
-      getUserAgent(event)
-    );
-
-    if (shouldLock) {
-      throw authenticationError(`Muitas tentativas falhadas. Conta bloqueada por ${LOCKOUT_DURATION} minutos.`);
-    }
-
+    logWarn('login_failed', 'Senha incorreta', { email });
     throw authenticationError('Email ou senha inválidos');
   }
 
-  // Login bem-sucedido - resetar contadores
-  await sql`
-    UPDATE users 
-    SET 
-      failed_login_attempts = 0,
-      locked_until = NULL,
-      last_login = CURRENT_TIMESTAMP
-    WHERE id = ${user.id}
-  `;
+  // Login bem-sucedido
 
   // Gerar token
   const token = generateToken(user);
@@ -127,8 +92,8 @@ async function handleLogin(event, sql) {
   // Salvar sessão
   const expiresAt = new Date(Date.now() + (24 * 60 * 60 * 1000)); // 24 horas
   await sql`
-    INSERT INTO sessions (user_id, token_hash, expires_at, ip_address, user_agent)
-    VALUES (${user.id}, ${tokenHash}, ${expiresAt}, ${getClientIP(event)}, ${getUserAgent(event)})
+    INSERT INTO sessions (user_id, token_hash, expires_at)
+    VALUES (${user.id}, ${tokenHash}, ${expiresAt})
   `;
 
   // Log de auditoria
