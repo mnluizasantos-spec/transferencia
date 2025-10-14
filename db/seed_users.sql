@@ -6,38 +6,41 @@
 -- Hash gerado com bcrypt rounds=10
 
 -- Admin padrão
-INSERT INTO users (email, password_hash, nome, role, ativo, force_password_change)
+INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
 VALUES (
   'admin@antilhas.com',
-  '$2a$10$rKQZxVZH7JVYvGQZ9xvHKOZ8c9zDXk6xR4xMQEp5xL8vYzKJvYvGS', -- admin123
-  'Administrador do Sistema',
+  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- admin123
+  'Administrador',
+  'Administrador',
   'admin',
-  true,
-  true -- Forçar troca de senha no primeiro login
+  false
 )
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (email) DO UPDATE SET
+  password_hash = EXCLUDED.password_hash,
+  nome = EXCLUDED.nome,
+  name = EXCLUDED.name;
 
 -- Separador padrão
-INSERT INTO users (email, password_hash, nome, role, ativo, force_password_change)
+INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
 VALUES (
   'separador@antilhas.com',
-  '$2a$10$rKQZxVZH7JVYvGQZ9xvHKOZ8c9zDXk6xR4xMQEp5xL8vYzKJvYvGS', -- admin123
+  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- admin123
+  'Separador de Material',
   'Separador de Material',
   'separador',
-  true,
-  true
+  false
 )
 ON CONFLICT (email) DO NOTHING;
 
 -- Solicitante padrão
-INSERT INTO users (email, password_hash, nome, role, ativo, force_password_change)
+INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
 VALUES (
   'solicitante@antilhas.com',
-  '$2a$10$rKQZxVZH7JVYvGQZ9xvHKOZ8c9zDXk6xR4xMQEp5xL8vYzKJvYvGS', -- admin123
+  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- admin123
+  'Solicitante Teste',
   'Solicitante Teste',
   'solicitante',
-  true,
-  true
+  false
 )
 ON CONFLICT (email) DO NOTHING;
 
