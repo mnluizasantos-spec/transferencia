@@ -70,11 +70,14 @@ async function handleList(event, sql, user) {
   // Construir query com condições
   let finalQuery;
   if (conditions.length > 0) {
+    // Combinar condições com AND
+    const combinedConditions = conditions.reduce((acc, cond, i) => {
+      return i === 0 ? cond : sql`${acc} AND ${cond}`;
+    });
+    
     finalQuery = sql`
       ${query}
-      AND ${sql(conditions.reduce((acc, cond, i) => {
-        return i === 0 ? cond : sql`${acc} AND ${cond}`;
-      }))}
+      AND ${combinedConditions}
     `;
   } else {
     finalQuery = query;
@@ -85,7 +88,7 @@ async function handleList(event, sql, user) {
     ${finalQuery}
     ORDER BY 
       CASE WHEN mr.urgencia = 'Urgente' THEN 0 ELSE 1 END,
-      mr.prazo ASC NULLS LAST,
+      mr.deadline ASC NULLS LAST,
       mr.created_at DESC
   `;
 
