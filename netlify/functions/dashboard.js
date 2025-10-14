@@ -12,21 +12,25 @@ const { verifyToken } = require('./utils/middleware');
  * Estatísticas gerais
  */
 async function handleStats(event, sql, user) {
-  const baseCondition = user.role === 'solicitante' 
-    ? sql`deleted_at IS NULL AND requester_name = ${user.name}`
-    : sql`deleted_at IS NULL`;
+  // Query simplificada e robusta
+  let whereClause = sql`WHERE deleted_at IS NULL`;
+  
+  if (user.role === 'solicitante') {
+    whereClause = sql`WHERE deleted_at IS NULL AND requester_name = ${user.name}`;
+  }
 
   const [stats] = await sql`
     SELECT 
-      COUNT(*) FILTER (WHERE ${baseCondition}) as total,
-      COUNT(*) FILTER (WHERE ${baseCondition} AND deadline < CURRENT_DATE AND status != 'Concluído') as atrasados,
-      COUNT(*) FILTER (WHERE ${baseCondition} AND deadline = CURRENT_DATE AND status != 'Concluído') as vence_hoje,
-      COUNT(*) FILTER (WHERE ${baseCondition} AND status = 'Concluído') as concluidos,
-      COUNT(*) FILTER (WHERE ${baseCondition} AND status = 'Pendente') as pendentes,
-      COUNT(*) FILTER (WHERE ${baseCondition} AND status = 'Em Separação') as em_separacao,
-      COUNT(*) FILTER (WHERE ${baseCondition} AND urgencia = 'Urgente' AND status != 'Concluído') as urgentes,
-      COUNT(*) FILTER (WHERE ${baseCondition} AND DATE(completed_at) = CURRENT_DATE) as concluidos_hoje
+      COUNT(*) as total,
+      COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído') as atrasados,
+      COUNT(*) FILTER (WHERE deadline = CURRENT_DATE AND status != 'Concluído') as vence_hoje,
+      COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
+      COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
+      COUNT(*) FILTER (WHERE status = 'Em Separação') as em_separacao,
+      COUNT(*) FILTER (WHERE urgencia = 'Urgente' AND status != 'Concluído') as urgentes,
+      COUNT(*) FILTER (WHERE DATE(completed_at) = CURRENT_DATE) as concluidos_hoje
     FROM material_requests
+    ${whereClause}
   `;
 
   return {

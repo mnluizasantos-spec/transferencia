@@ -28,71 +28,19 @@ async function logHistory(sql, requestId, userId, campo, valorAnterior, valorNov
 async function handleList(event, sql, user) {
   const params = event.queryStringParameters || {};
   
-  let query = sql`
+  // Query simplificada
+  const requests = await sql`
     SELECT 
       mr.*,
-      u_solicitante.name as solicitante_nome,
-      u_solicitante.email as solicitante_email
+      mr.requester_name as solicitante_nome
     FROM material_requests mr
-    LEFT JOIN users u_solicitante ON mr.created_by = u_solicitante.id
     WHERE mr.deleted_at IS NULL
-  `;
-
-  // Filtros
-  const conditions = [];
-  
-  if (params.status) {
-    conditions.push(sql`mr.status = ${params.status}`);
-  }
-
-  if (params.urgencia) {
-    conditions.push(sql`mr.urgencia = ${params.urgencia}`);
-  }
-
-  if (params.solicitante) {
-    conditions.push(sql`mr.requester_name ILIKE ${'%' + params.solicitante + '%'}`);
-  }
-
-  if (params.search) {
-    const searchTerm = `%${params.search}%`;
-    conditions.push(sql`(
-      mr.material_code ILIKE ${searchTerm} OR 
-      mr.material_description ILIKE ${searchTerm} OR
-      mr.requester_name ILIKE ${searchTerm}
-    )`);
-  }
-
-  // Solicitantes só veem suas próprias solicitações
-  if (user.role === 'solicitante') {
-    conditions.push(sql`mr.requester_name = ${user.name}`);
-  }
-
-  // Construir query com condições
-  let finalQuery;
-  if (conditions.length > 0) {
-    // Combinar condições com AND
-    const combinedConditions = conditions.reduce((acc, cond, i) => {
-      return i === 0 ? cond : sql`${acc} AND ${cond}`;
-    });
-    
-    finalQuery = sql`
-      ${query}
-      AND ${combinedConditions}
-    `;
-  } else {
-    finalQuery = query;
-  }
-
-  // Ordenação
-  finalQuery = sql`
-    ${finalQuery}
+    ${user.role === 'solicitante' ? sql`AND mr.requester_name = ${user.name}` : sql``}
     ORDER BY 
       CASE WHEN mr.urgencia = 'Urgente' THEN 0 ELSE 1 END,
-      mr.deadline ASC NULLS LAST,
       mr.created_at DESC
+    LIMIT 100
   `;
-
-  const requests = await finalQuery;
 
   return {
     statusCode: 200,
