@@ -20,9 +20,9 @@ async function handleGetTemplate(event) {
 
   // Aba de dados
   const wsData = XLSX.utils.aoa_to_sheet([
-    ['Material', 'Quantidade', 'Solicitante', 'Urgencia', 'Prazo', 'Inicio Producao', 'Justificativa'],
-    ['Matéria-Prima X123', '100', 'João Silva', 'Normal', '2025-10-20', '2025-10-15', 'Exemplo de justificativa'],
-    ['Componente Y456', '250', 'Maria Santos', 'Urgente', '2025-10-14', '2025-10-13', 'Produção urgente']
+    ['Material', 'Descrição', 'Quantidade', 'Unidade', 'Solicitante', 'Urgencia', 'Prazo', 'Inicio Producao', 'Justificativa'],
+    ['MP001', 'Matéria-Prima X123 - Aço inoxidável', '100', 'kg', 'João Silva', 'Normal', '2025-10-20', '2025-10-15', 'Exemplo de justificativa'],
+    ['COMP002', 'Componente Y456 - Parafuso M8x20', '250', 'pc', 'Maria Santos', 'Urgente', '2025-10-14', '2025-10-13', 'Produção urgente']
   ]);
 
   XLSX.utils.book_append_sheet(wb, wsData, 'Solicitações');
@@ -32,16 +32,19 @@ async function handleGetTemplate(event) {
     ['INSTRUÇÕES PARA IMPORTAÇÃO'],
     [''],
     ['1. Preencha as colunas conforme o exemplo fornecido'],
-    ['2. Campos obrigatórios: Material, Quantidade, Solicitante'],
+    ['2. Campos obrigatórios: Material, Descrição, Quantidade, Unidade, Solicitante'],
     ['3. Urgencia deve ser: "Normal" ou "Urgente"'],
     ['4. Datas no formato: AAAA-MM-DD (ex: 2025-10-20)'],
     ['5. Quantidade deve ser um número inteiro positivo'],
-    ['6. Máximo de 1000 linhas por importação'],
+    ['6. Unidade deve ser: "kg", "pc", "m", "l", etc.'],
+    ['7. Máximo de 1000 linhas por importação'],
     [''],
     ['DESCRIÇÃO DOS CAMPOS:'],
     [''],
-    ['Material: Descrição do material solicitado (obrigatório)'],
+    ['Material: Código do material (obrigatório)'],
+    ['Descrição: Descrição detalhada do material (obrigatório)'],
     ['Quantidade: Quantidade numérica (obrigatório)'],
+    ['Unidade: Unidade de medida - kg, pc, m, l, etc. (obrigatório)'],
     ['Solicitante: Nome do solicitante (obrigatório)'],
     ['Urgencia: Normal ou Urgente (opcional, padrão: Normal)'],
     ['Prazo: Data limite para separação (opcional)'],
@@ -123,8 +126,10 @@ async function handleValidate(event, sql, user) {
     } else {
       validRows.push({
         rowNumber,
-        material: row.Material || row.material,
+        material_code: row.Material || row.material,
+        material_description: row.Descrição || row.Descricao || row.descrição || row.descricao,
         quantidade: parseInt(row.Quantidade || row.quantidade, 10),
+        unidade: row.Unidade || row.unidade,
         solicitante: row.Solicitante || row.solicitante,
         urgencia: row.Urgencia || row.urgencia || 'Normal',
         prazo: row.Prazo || row.prazo || null,
@@ -245,12 +250,13 @@ async function handleExecute(event, sql, user) {
           // Criar solicitação
           const [request] = await tx`
             INSERT INTO material_requests 
-              (material, quantidade, justificativa, solicitante_id, urgencia, prazo, inicio_producao, status, created_by)
+              (material_code, material_description, quantidade, justificativa, requester_name, urgencia, deadline, production_start_date, status, created_by)
             VALUES 
               (${row.Material || row.material},
+               ${row.Descrição || row.Descricao || row.descrição || row.descricao},
                ${parseInt(row.Quantidade || row.quantidade, 10)},
                ${row.Justificativa || row.justificativa || null},
-               ${solicitante.id},
+               ${solicitanteName},
                ${row.Urgencia || row.urgencia || 'Normal'},
                ${row.Prazo || row.prazo || null},
                ${row['Inicio Producao'] || row.inicio_producao || null},

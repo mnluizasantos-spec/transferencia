@@ -180,27 +180,45 @@ function validateRequestData(data, isUpdate = false) {
 function validateImportRow(row, rowNumber) {
   const errors = [];
 
-  if (!row.material || row.material.trim() === '') {
+  // Verificar campos com diferentes nomes possíveis
+  const material = row.Material || row.material;
+  const descricao = row.Descrição || row.Descricao || row.descrição || row.descricao;
+  const quantidade = row.Quantidade || row.quantidade;
+  const unidade = row.Unidade || row.unidade;
+  const solicitante = row.Solicitante || row.solicitante;
+  const urgencia = row.Urgencia || row.urgencia;
+
+  if (!material || material.trim() === '') {
     errors.push(`Linha ${rowNumber}: Material é obrigatório`);
   }
 
-  if (!row.quantidade || !isPositiveInteger(row.quantidade)) {
+  if (!descricao || descricao.trim() === '') {
+    errors.push(`Linha ${rowNumber}: Descrição é obrigatória`);
+  }
+
+  if (!quantidade || !isPositiveInteger(quantidade)) {
     errors.push(`Linha ${rowNumber}: Quantidade deve ser um número positivo`);
   }
 
-  if (!row.solicitante || row.solicitante.trim() === '') {
+  if (!unidade || unidade.trim() === '') {
+    errors.push(`Linha ${rowNumber}: Unidade é obrigatória`);
+  }
+
+  if (!solicitante || solicitante.trim() === '') {
     errors.push(`Linha ${rowNumber}: Solicitante é obrigatório`);
   }
 
-  if (row.urgencia && !isValidOption(row.urgencia, ['Urgente', 'Normal'])) {
+  if (urgencia && !isValidOption(urgencia, ['Urgente', 'Normal'])) {
     errors.push(`Linha ${rowNumber}: Urgência deve ser "Urgente" ou "Normal"`);
   }
 
-  if (row.prazo && !isValidDate(row.prazo)) {
+  const prazo = row.Prazo || row.prazo;
+  if (prazo && !isValidDate(prazo)) {
     errors.push(`Linha ${rowNumber}: Prazo deve ser uma data válida`);
   }
 
-  if (row.inicio_producao && !isValidDate(row.inicio_producao)) {
+  const inicio_producao = row['Inicio Producao'] || row.inicio_producao;
+  if (inicio_producao && !isValidDate(inicio_producao)) {
     errors.push(`Linha ${rowNumber}: Início de produção deve ser uma data válida`);
   }
 
