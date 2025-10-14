@@ -12,25 +12,18 @@ const { verifyToken } = require('./utils/middleware');
  * Estatísticas gerais
  */
 async function handleStats(event, sql, user) {
-  // Construir query baseado na role
-  let whereClause = 'deleted_at IS NULL';
-  
-  if (user.role === 'solicitante') {
-    whereClause += ` AND solicitante_id = ${user.userId}`;
-  }
-
   const [stats] = await sql`
     SELECT 
       COUNT(*) FILTER (WHERE deleted_at IS NULL) as total,
-      COUNT(*) FILTER (WHERE deleted_at IS NULL AND prazo < CURRENT_DATE AND status != 'Concluído') as atrasados,
-      COUNT(*) FILTER (WHERE deleted_at IS NULL AND prazo = CURRENT_DATE AND status != 'Concluído') as vence_hoje,
+      COUNT(*) FILTER (WHERE deleted_at IS NULL AND deadline < CURRENT_DATE AND status != 'Concluído') as atrasados,
+      COUNT(*) FILTER (WHERE deleted_at IS NULL AND deadline = CURRENT_DATE AND status != 'Concluído') as vence_hoje,
       COUNT(*) FILTER (WHERE deleted_at IS NULL AND status = 'Concluído') as concluidos,
       COUNT(*) FILTER (WHERE deleted_at IS NULL AND status = 'Pendente') as pendentes,
       COUNT(*) FILTER (WHERE deleted_at IS NULL AND status = 'Em Separação') as em_separacao,
       COUNT(*) FILTER (WHERE deleted_at IS NULL AND urgencia = 'Urgente' AND status != 'Concluído') as urgentes,
       COUNT(*) FILTER (WHERE deleted_at IS NULL AND DATE(completed_at) = CURRENT_DATE) as concluidos_hoje
     FROM material_requests
-    ${user.role === 'solicitante' ? sql`WHERE solicitante_id = ${user.userId}` : sql``}
+    ${user.role === 'solicitante' ? sql`WHERE requester_name = ${user.name}` : sql``}
   `;
 
   return {
@@ -57,19 +50,18 @@ async function handleUrgentes(event, sql, user) {
   let query = sql`
     SELECT 
       mr.*,
-      u.nome as solicitante_nome
+      mr.requester_name as solicitante_nome
     FROM material_requests mr
-    JOIN users u ON mr.solicitante_id = u.id
     WHERE mr.deleted_at IS NULL
     AND mr.urgencia = 'Urgente'
     AND mr.status != 'Concluído'
   `;
 
   if (user.role === 'solicitante') {
-    query = sql`${query} AND mr.solicitante_id = ${user.userId}`;
+    query = sql`${query} AND mr.requester_name = ${user.name}`;
   }
 
-  query = sql`${query} ORDER BY mr.prazo ASC NULLS LAST, mr.created_at ASC`;
+  query = sql`${query} ORDER BY mr.deadline ASC NULLS LAST, mr.created_at ASC`;
 
   const urgentes = await query;
 
@@ -87,7 +79,7 @@ async function handleUrgentes(event, sql, user) {
 async function handleTrends(event, sql, user) {
   // Últimos 30 dias
   const whereClause = user.role === 'solicitante' 
-    ? sql`AND solicitante_id = ${user.userId}` 
+    ? sql`AND requester_name = ${user.name}` 
     : sql``;
 
   const trends = await sql`
