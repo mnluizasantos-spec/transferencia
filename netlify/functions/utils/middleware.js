@@ -47,10 +47,16 @@ async function verifyToken(event, sql) {
 
     // Verificar se usuário ainda está ativo
     const [user] = await sql`
-      SELECT id, email, role, ativo 
-      FROM users 
-      WHERE id = ${decoded.userId} 
-      AND deleted_at IS NULL
+      SELECT 
+        u.id, 
+        u.email, 
+        r.name as role,
+        u.ativo 
+      FROM users u
+      LEFT JOIN user_roles ur ON u.id = ur.user_id
+      LEFT JOIN roles r ON ur.role_id = r.id
+      WHERE u.id = ${decoded.userId} 
+      AND u.deleted_at IS NULL
     `;
 
     if (!user) {
