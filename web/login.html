@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Sistema de Transferência de Material</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="login-page">
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="logo">🚚</div>
+                <h1>Sistema de Transferência</h1>
+                <p>Material Intercompany</p>
+            </div>
+
+            <form id="login-form" class="login-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required autofocus placeholder="seu@email.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Senha</label>
+                    <input type="password" id="password" name="password" required placeholder="••••••••">
+                </div>
+
+                <div class="form-error" id="error-message" style="display: none;"></div>
+
+                <button type="submit" class="btn btn-primary btn-block" id="login-button">
+                    <span class="btn-text">Entrar</span>
+                    <span class="btn-loading" style="display: none;">Entrando...</span>
+                </button>
+            </form>
+
+            <div class="login-footer">
+                <p><small>Credenciais padrão para teste:</small></p>
+                <p><small><strong>Admin:</strong> admin@antilhas.com / admin123</small></p>
+                <p><small><strong>Separador:</strong> separador@antilhas.com / admin123</small></p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { login, isAuthenticated } from '/js/auth.js';
+
+        // Redirecionar se já estiver autenticado
+        if (isAuthenticated()) {
+            window.location.href = '/';
+        }
+
+        const form = document.getElementById('login-form');
+        const errorDiv = document.getElementById('error-message');
+        const loginButton = document.getElementById('login-button');
+        const btnText = loginButton.querySelector('.btn-text');
+        const btnLoading = loginButton.querySelector('.btn-loading');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            // UI feedback
+            loginButton.disabled = true;
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+            errorDiv.style.display = 'none';
+
+            try {
+                await login(email, password);
+                // Sucesso - redirecionar
+                window.location.href = '/';
+            } catch (error) {
+                errorDiv.textContent = error.message || 'Erro ao fazer login';
+                errorDiv.style.display = 'block';
+                
+                loginButton.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Sistema de Transferência de Material</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="app-header">
+        <div class="header-content">
+            <div class="header-left">
+                <div class="logo">🚚</div>
+                <div class="header-title">
+                    <h1>Sistema de Transferência de Material</h1>
+                    <div class="header-subtitle">Painel de Controle - Intercompany</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <div>
+                        <div style="font-weight: 600; font-size: 14px;" id="user-name">Carregando...</div>
+                        <div style="font-size: 12px; opacity: 0.9;" id="user-role"></div>
+                    </div>
+                    <div class="user-avatar" id="user-avatar">?</div>
+                </div>
+                <button class="btn-logout" onclick="handleLogout()">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Statistics Cards -->
+        <div class="stats-grid">
+            <div class="stat-card primary">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">Total de Solicitações</div>
+                        <div class="stat-value" id="stat-total">-</div>
+                    </div>
+                    <div class="stat-icon">📦</div>
+                </div>
+            </div>
+
+            <div class="stat-card danger">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">Em Atraso</div>
+                        <div class="stat-value" id="stat-atrasados">-</div>
+                    </div>
+                    <div class="stat-icon">⚠️</div>
+                </div>
+            </div>
+
+            <div class="stat-card warning">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">Vencem Hoje</div>
+                        <div class="stat-value" id="stat-hoje">-</div>
+                    </div>
+                    <div class="stat-icon">🕐</div>
+                </div>
+            </div>
+
+            <div class="stat-card success">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">Concluídos</div>
+                        <div class="stat-value" id="stat-concluidos">-</div>
+                    </div>
+                    <div class="stat-icon">✅</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls-panel">
+            <div class="controls-row">
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="🔍 Buscar por material ou solicitante...">
+                </div>
+                <select id="filter-status">
+                    <option value="">Todos os Status</option>
+                    <option value="Pendente">Pendente</option>
+                    <option value="Em Separação">Em Separação</option>
+                    <option value="Concluído">Concluído</option>
+                    <option value="Cancelado">Cancelado</option>
+                </select>
+                <select id="filter-urgencia">
+                    <option value="">Todas as Urgências</option>
+                    <option value="Urgente">Urgente</option>
+                    <option value="Normal">Normal</option>
+                </select>
+                <button class="btn btn-secondary btn-small" onclick="downloadTemplate()">📥 Template Excel</button>
+                <button class="btn btn-success" onclick="openRequestModal()">+ Nova Solicitação</button>
+            </div>
+        </div>
+
+        <!-- Selection Actions -->
+        <div id="selection-actions" style="display: none; margin-bottom: 15px;">
+            <span id="selection-info">0 itens selecionados</span>
+            <button class="btn btn-primary btn-small" onclick="printSelected()" style="margin-left: 10px;">🖨️ Imprimir Selecionados</button>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="select-all"></th>
+                        <th>ID</th>
+                        <th>Urgência</th>
+                        <th>Prazo</th>
+                        <th>Material</th>
+                        <th>Solicitante</th>
+                        <th>Qtd</th>
+                        <th>Status</th>
+                        <th>Atualizado</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="requests-tbody">
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 40px;">
+                            Carregando...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal de Solicitação -->
+    <div class="modal-overlay" id="request-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Nova Solicitação</h2>
+                <p id="modal-subtitle">Preencha os dados para criar uma nova solicitação</p>
+            </div>
+            <div class="modal-body">
+                <form id="request-form">
+                    <input type="hidden" id="request-id">
+
+                    <div class="form-group">
+                        <label for="material">Material *</label>
+                        <input type="text" id="material" required placeholder="Ex: Matéria-Prima X123">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="quantidade">Quantidade *</label>
+                        <input type="number" id="quantidade" required min="1" placeholder="Ex: 100">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="solicitante">Solicitante *</label>
+                        <input type="text" id="solicitante" required placeholder="Nome do solicitante">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="urgencia">Urgência</label>
+                        <select id="urgencia">
+                            <option value="Normal">Normal</option>
+                            <option value="Urgente">Urgente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="prazo">Prazo</label>
+                        <input type="date" id="prazo">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="inicio-producao">Início de Produção</label>
+                        <input type="date" id="inicio-producao">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="justificativa">Justificativa</label>
+                        <textarea id="justificativa" placeholder="Opcional: descreva o motivo da solicitação"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeRequestModal()">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="saveRequest()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Histórico -->
+    <div class="modal-overlay" id="history-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Histórico da Solicitação</h2>
+                <p>Timeline completa de alterações</p>
+            </div>
+            <div class="modal-body">
+                <div id="history-timeline" class="timeline">
+                    <p style="text-align: center; color: var(--text-secondary);">Carregando histórico...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeHistoryModal()">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { requireAuth, getCurrentUser, logout, isAdmin, isSeparador } from '/js/auth.js';
+        import { getRequests, getDashboardStats, createRequest, updateRequest, deleteRequest, getRequestHistory, printPickingList } from '/js/api.js';
+
+        // Verificar autenticação
+        if (!requireAuth()) {
+            window.location.href = '/login.html';
+        }
+
+        // Estado global
+        let currentRequests = [];
+        let selectedIds = new Set();
+        let editingRequestId = null;
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeUser();
+            loadDashboard();
+            loadRequests();
+            setupEventListeners();
+        });
+
+        function initializeUser() {
+            const user = getCurrentUser();
+            if (!user) return;
+
+            document.getElementById('user-name').textContent = user.nome;
+            document.getElementById('user-role').textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+            
+            const initials = user.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            document.getElementById('user-avatar').textContent = initials;
+        }
+
+        function setupEventListeners() {
+            document.getElementById('search-input').addEventListener('input', debounce(loadRequests, 300));
+            document.getElementById('filter-status').addEventListener('change', loadRequests);
+            document.getElementById('filter-urgencia').addEventListener('change', loadRequests);
+            document.getElementById('select-all').addEventListener('change', handleSelectAll);
+
+            // Fechar modais ao clicar fora
+            document.getElementById('request-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'request-modal') closeRequestModal();
+            });
+            document.getElementById('history-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'history-modal') closeHistoryModal();
+            });
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func(...args), wait);
+            };
+        }
+
+        async function loadDashboard() {
+            try {
+                const stats = await getDashboardStats();
+                document.getElementById('stat-total').textContent = stats.total;
+                document.getElementById('stat-atrasados').textContent = stats.atrasados;
+                document.getElementById('stat-hoje').textContent = stats.vencem_hoje;
+                document.getElementById('stat-concluidos').textContent = stats.concluidos;
+            } catch (error) {
+                console.error('Erro ao carregar dashboard:', error);
+            }
+        }
+
+        async function loadRequests() {
+            const search = document.getElementById('search-input').value;
+            const status = document.getElementById('filter-status').value;
+            const urgencia = document.getElementById('filter-urgencia').value;
+
+            const filters = {};
+            if (search) filters.search = search;
+            if (status) filters.status = status;
+            if (urgencia) filters.urgencia = urgencia;
+
+            try {
+                currentRequests = await getRequests(filters);
+                renderRequests();
+                loadDashboard(); // Atualizar estatísticas
+            } catch (error) {
+                console.error('Erro ao carregar solicitações:', error);
+                document.getElementById('requests-tbody').innerHTML = `
+                    <tr><td colspan="10" style="text-align: center; color: var(--danger);">
+                        Erro ao carregar solicitações: ${error.message}
+                    </td></tr>
+                `;
+            }
+        }
+
+        function renderRequests() {
+            const tbody = document.getElementById('requests-tbody');
+            
+            if (currentRequests.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="10" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                        Nenhuma solicitação encontrada
+                    </td></tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = currentRequests.map(req => `
+                <tr>
+                    <td><input type="checkbox" class="row-checkbox" data-id="${req.id}"></td>
+                    <td><strong>#${req.id}</strong></td>
+                    <td>
+                        <span class="badge ${req.urgencia.toLowerCase()}">${req.urgencia}</span>
+                    </td>
+                    <td>${formatPrazo(req.prazo, req.status)}</td>
+                    <td><strong>${req.material}</strong></td>
+                    <td>${req.solicitante_nome}</td>
+                    <td>${req.quantidade}</td>
+                    <td>
+                        <span class="badge ${req.status.toLowerCase().replace(' ', '-')}">${req.status}</span>
+                    </td>
+                    <td>${formatDateTime(req.updated_at)}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-small" onclick="showHistory(${req.id})" title="Histórico">📋</button>
+                        ${req.status !== 'Concluído' ? `
+                            <button class="btn btn-primary btn-small" onclick="editRequest(${req.id})" title="Editar">✏️</button>
+                            <button class="btn btn-success btn-small" onclick="completeRequest(${req.id})" title="Concluir">✓</button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `).join('');
+
+            // Adicionar event listeners aos checkboxes
+            document.querySelectorAll('.row-checkbox').forEach(cb => {
+                cb.addEventListener('change', handleCheckboxChange);
+            });
+        }
+
+        function formatPrazo(prazo, status) {
+            if (!prazo || status === 'Concluído') return '-';
+            
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+            const prazoDate = new Date(prazo);
+            const diff = Math.ceil((prazoDate - hoje) / (1000 * 60 * 60 * 24));
+            
+            let className = '';
+            let label = '';
+            
+            if (diff < 0) {
+                className = 'danger';
+                label = `<br><small>(${Math.abs(diff)} dias de atraso)</small>`;
+            } else if (diff === 0) {
+                className = 'warning';
+                label = '<br><small>(Vence hoje!)</small>`;
+            } else {
+                className = 'success';
+                label = `<br><small>(${diff} dias)</small>`;
+            }
+            
+            return `<span style="color: var(--${className}); font-weight: 600;">${prazoDate.toLocaleDateString('pt-BR')}${label}</span>`;
+        }
+
+        function formatDateTime(dateString) {
+            if (!dateString) return '-';
+            return new Date(dateString).toLocaleString('pt-BR');
+        }
+
+        function handleSelectAll(e) {
+            const checked = e.target.checked;
+            document.querySelectorAll('.row-checkbox').forEach(cb => {
+                cb.checked = checked;
+            });
+            updateSelectedIds();
+        }
+
+        function handleCheckboxChange() {
+            updateSelectedIds();
+        }
+
+        function updateSelectedIds() {
+            selectedIds.clear();
+            document.querySelectorAll('.row-checkbox:checked').forEach(cb => {
+                selectedIds.add(parseInt(cb.dataset.id));
+            });
+
+            const count = selectedIds.size;
+            document.getElementById('selection-info').textContent = `${count} ${count === 1 ? 'item selecionado' : 'itens selecionados'}`;
+            document.getElementById('selection-actions').style.display = count > 0 ? 'block' : 'none';
+        }
+
+        window.openRequestModal = function() {
+            editingRequestId = null;
+            document.getElementById('modal-title').textContent = 'Nova Solicitação';
+            document.getElementById('modal-subtitle').textContent = 'Preencha os dados para criar uma nova solicitação';
+            document.getElementById('request-form').reset();
+            document.getElementById('request-id').value = '';
+            document.getElementById('request-modal').classList.add('active');
+        };
+
+        window.closeRequestModal = function() {
+            document.getElementById('request-modal').classList.remove('active');
+        };
+
+        window.editRequest = function(id) {
+            const request = currentRequests.find(r => r.id === id);
+            if (!request) return;
+
+            editingRequestId = id;
+            document.getElementById('modal-title').textContent = 'Editar Solicitação';
+            document.getElementById('modal-subtitle').textContent = `Editando solicitação #${id}`;
+            
+            document.getElementById('request-id').value = id;
+            document.getElementById('material').value = request.material;
+            document.getElementById('quantidade').value = request.quantidade;
+            document.getElementById('solicitante').value = request.solicitante_nome;
+            document.getElementById('urgencia').value = request.urgencia;
+            document.getElementById('prazo').value = request.prazo || '';
+            document.getElementById('inicio-producao').value = request.inicio_producao || '';
+            document.getElementById('justificativa').value = request.justificativa || '';
+
+            document.getElementById('request-modal').classList.add('active');
+        };
+
+        window.saveRequest = async function() {
+            const id = document.getElementById('request-id').value;
+            const data = {
+                material: document.getElementById('material').value,
+                quantidade: parseInt(document.getElementById('quantidade').value),
+                urgencia: document.getElementById('urgencia').value,
+                prazo: document.getElementById('prazo').value || null,
+                inicio_producao: document.getElementById('inicio-producao').value || null,
+                justificativa: document.getElementById('justificativa').value || null
+            };
+
+            // Adicionar solicitante apenas para novos (backend resolve o resto)
+            if (!id) {
+                data.solicitante = document.getElementById('solicitante').value;
+            }
+
+            try {
+                if (id) {
+                    await updateRequest(id, data);
+                    alert('Solicitação atualizada com sucesso!');
+                } else {
+                    await createRequest(data);
+                    alert('Solicitação criada com sucesso!');
+                }
+
+                closeRequestModal();
+                await loadRequests();
+            } catch (error) {
+                alert(`Erro ao salvar: ${error.message}`);
+            }
+        };
+
+        window.completeRequest = async function(id) {
+            if (!confirm('Marcar esta solicitação como concluída?')) return;
+
+            try {
+                await updateRequest(id, { status: 'Concluído' });
+                alert('Solicitação concluída!');
+                await loadRequests();
+            } catch (error) {
+                alert(`Erro: ${error.message}`);
+            }
+        };
+
+        window.showHistory = async function(id) {
+            document.getElementById('history-modal').classList.add('active');
+            const timeline = document.getElementById('history-timeline');
+            timeline.innerHTML = '<p style="text-align: center;">Carregando...</p>';
+
+            try {
+                const history = await getRequestHistory(id);
+                
+                if (history.length === 0) {
+                    timeline.innerHTML = '<p style="text-align: center; color: var(--text-secondary);">Nenhum histórico disponível</p>';
+                    return;
+                }
+
+                timeline.innerHTML = history.map(h => `
+                    <div class="timeline-item">
+                        <div class="timeline-time">${formatDateTime(h.timestamp)}</div>
+                        <div class="timeline-content">
+                            <div class="timeline-action">${getActionIcon(h.acao)} ${getActionLabel(h.acao)}</div>
+                            <div class="timeline-details">
+                                ${h.campo_alterado}: 
+                                ${h.valor_anterior ? `<strong>${h.valor_anterior}</strong> → ` : ''}
+                                <strong>${h.valor_novo}</strong><br>
+                                Por: ${h.usuario_nome}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                timeline.innerHTML = `<p style="color: var(--danger);">Erro ao carregar histórico</p>`;
+            }
+        };
+
+        function getActionIcon(acao) {
+            const icons = {
+                'criado': '📝',
+                'atualizado': '✏️',
+                'status_mudado': '🔄',
+                'concluído': '✅',
+                'cancelado': '❌'
+            };
+            return icons[acao] || '📌';
+        }
+
+        function getActionLabel(acao) {
+            const labels = {
+                'criado': 'Criado',
+                'atualizado': 'Atualizado',
+                'status_mudado': 'Status Alterado',
+                'concluído': 'Concluído',
+                'cancelado': 'Cancelado'
+            };
+            return labels[acao] || acao;
+        }
+
+        window.closeHistoryModal = function() {
+            document.getElementById('history-modal').classList.remove('active');
+        };
+
+        window.printSelected = async function() {
+            if (selectedIds.size === 0) return;
+
+            try {
+                await printPickingList(Array.from(selectedIds));
+            } catch (error) {
+                alert(`Erro ao gerar impressão: ${error.message}`);
+            }
+        };
+
+        window.downloadTemplate = function() {
+            window.location.href = '/.netlify/functions/import/template';
+        };
+
+        window.handleLogout = async function() {
+            if (confirm('Deseja realmente sair?')) {
+                await logout();
+            }
+        };
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,36 @@
+{
+  "name": "sistema-transferencia-material",
+  "version": "1.0.0",
+  "description": "Sistema de Transferência de Material Intercompany - Netlify + Neon",
+  "main": "index.js",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'Build complete - static site'",
+    "deploy": "netlify deploy --prod",
+    "deploy:staging": "netlify deploy",
+    "test": "node scripts/data_integrity_check.js",
+    "backup": "node scripts/backup.js"
+  },
+  "keywords": [
+    "material",
+    "transfer",
+    "intercompany",
+    "logistics"
+  ],
+  "author": "Antilhas",
+  "license": "MIT",
+  "dependencies": {
+    "@neondatabase/serverless": "^0.9.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.10.1",
+    "dotenv": "^16.3.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+
