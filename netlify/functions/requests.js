@@ -33,24 +33,44 @@ async function handleList(event, sql, user) {
     
     const userName = user.name || user.nome || 'Unknown';
     
-    const requests = await sql`
-      SELECT 
-        id,
-        material_code,
-        material_description,
-        quantidade,
-        unidade,
-        requester_name,
-        urgencia,
-        status,
-        created_at,
-        updated_at
-      FROM material_requests
-      WHERE deleted_at IS NULL
-      ${user.role === 'solicitante' ? sql`AND requester_name = ${userName}` : sql``}
-      ORDER BY created_at DESC
-      LIMIT 100
-    `;
+    let requests;
+    if (user.role === 'solicitante') {
+      requests = await sql`
+        SELECT 
+          id,
+          material_code,
+          material_description,
+          quantidade,
+          unidade,
+          requester_name,
+          urgencia,
+          status,
+          created_at,
+          updated_at
+        FROM material_requests
+        WHERE deleted_at IS NULL AND requester_name = ${userName}
+        ORDER BY created_at DESC
+        LIMIT 100
+      `;
+    } else {
+      requests = await sql`
+        SELECT 
+          id,
+          material_code,
+          material_description,
+          quantidade,
+          unidade,
+          requester_name,
+          urgencia,
+          status,
+          created_at,
+          updated_at
+        FROM material_requests
+        WHERE deleted_at IS NULL
+        ORDER BY created_at DESC
+        LIMIT 100
+      `;
+    }
     
     console.log('Requests List - Resultado', { count: requests.length });
     

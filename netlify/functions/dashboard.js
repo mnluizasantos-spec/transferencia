@@ -15,23 +15,29 @@ async function handleStats(event, sql, user) {
   try {
     console.log('Dashboard Stats - Iniciando', { userRole: user.role, userName: user.name });
     
-    let whereClause = sql`WHERE deleted_at IS NULL`;
-    
-    if (user.role === 'solicitante') {
-      const userName = user.name || user.nome || 'Unknown';
-      whereClause = sql`WHERE deleted_at IS NULL AND requester_name = ${userName}`;
-    }
-    
     console.log('Dashboard Stats - Executando query');
     
-    const [stats] = await sql`
-      SELECT 
-        COUNT(*) as total,
-        COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
-        COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos
-      FROM material_requests
-      ${whereClause}
-    `;
+    let stats;
+    if (user.role === 'solicitante') {
+      const userName = user.name || user.nome || 'Unknown';
+      [stats] = await sql`
+        SELECT 
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
+          COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos
+        FROM material_requests
+        WHERE deleted_at IS NULL AND requester_name = ${userName}
+      `;
+    } else {
+      [stats] = await sql`
+        SELECT 
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
+          COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos
+        FROM material_requests
+        WHERE deleted_at IS NULL
+      `;
+    }
     
     console.log('Dashboard Stats - Resultado', stats);
     
@@ -61,23 +67,31 @@ async function handleStats(event, sql, user) {
  * Lista de solicitações urgentes não concluídas
  */
 async function handleUrgentes(event, sql, user) {
-  let query = sql`
-    SELECT 
-      mr.*,
-      mr.requester_name as solicitante_nome
-    FROM material_requests mr
-    WHERE mr.deleted_at IS NULL
-    AND mr.urgencia = 'Urgente'
-    AND mr.status != 'Concluído'
-  `;
-
+  let urgentes;
   if (user.role === 'solicitante') {
-    query = sql`${query} AND mr.requester_name = ${user.name}`;
+    urgentes = await sql`
+      SELECT 
+        mr.*,
+        mr.requester_name as solicitante_nome
+      FROM material_requests mr
+      WHERE mr.deleted_at IS NULL
+      AND mr.urgencia = 'Urgente'
+      AND mr.status != 'Concluído'
+      AND mr.requester_name = ${user.name}
+      ORDER BY mr.deadline ASC NULLS LAST, mr.created_at ASC
+    `;
+  } else {
+    urgentes = await sql`
+      SELECT 
+        mr.*,
+        mr.requester_name as solicitante_nome
+      FROM material_requests mr
+      WHERE mr.deleted_at IS NULL
+      AND mr.urgencia = 'Urgente'
+      AND mr.status != 'Concluído'
+      ORDER BY mr.deadline ASC NULLS LAST, mr.created_at ASC
+    `;
   }
-
-  query = sql`${query} ORDER BY mr.deadline ASC NULLS LAST, mr.created_at ASC`;
-
-  const urgentes = await query;
 
   return {
     statusCode: 200,
@@ -92,23 +106,35 @@ async function handleUrgentes(event, sql, user) {
  */
 async function handleTrends(event, sql, user) {
   // Últimos 30 dias
-  const whereClause = user.role === 'solicitante' 
-    ? sql`AND requester_name = ${user.name}` 
-    : sql``;
-
-  const trends = await sql`
-    SELECT 
-      DATE(created_at) as data,
-      COUNT(*) as total_criadas,
-      COUNT(*) FILTER (WHERE status = 'Concluído') as total_concluidas,
-      COUNT(*) FILTER (WHERE urgencia = 'Urgente') as total_urgentes
-    FROM material_requests
-    WHERE deleted_at IS NULL
-    AND created_at >= CURRENT_DATE - INTERVAL '30 days'
-    ${whereClause}
-    GROUP BY DATE(created_at)
-    ORDER BY data DESC
-  `;
+  let trends;
+  if (user.role === 'solicitante') {
+    trends = await sql`
+      SELECT 
+        DATE(created_at) as data,
+        COUNT(*) as total_criadas,
+        COUNT(*) FILTER (WHERE status = 'Concluído') as total_concluidas,
+        COUNT(*) FILTER (WHERE urgencia = 'Urgente') as total_urgentes
+      FROM material_requests
+      WHERE deleted_at IS NULL
+      AND created_at >= CURRENT_DATE - INTERVAL '30 days'
+      AND requester_name = ${user.name}
+      GROUP BY DATE(created_at)
+      ORDER BY data DESC
+    `;
+  } else {
+    trends = await sql`
+      SELECT 
+        DATE(created_at) as data,
+        COUNT(*) as total_criadas,
+        COUNT(*) FILTER (WHERE status = 'Concluído') as total_concluidas,
+        COUNT(*) FILTER (WHERE urgencia = 'Urgente') as total_urgentes
+      FROM material_requests
+      WHERE deleted_at IS NULL
+      AND created_at >= CURRENT_DATE - INTERVAL '30 days'
+      GROUP BY DATE(created_at)
+      ORDER BY data DESC
+    `;
+  }
 
   return {
     statusCode: 200,
