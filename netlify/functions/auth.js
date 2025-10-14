@@ -56,11 +56,14 @@ async function handleLogin(event, sql) {
   // Buscar usuário com role
   const [user] = await sql`
     SELECT 
-      u.*,
-      r.name as role
+      u.id,
+      u.email,
+      u.password_hash,
+      u.nome,
+      u.name,
+      u.role,
+      u.deleted_at
     FROM users u
-    JOIN user_roles ur ON u.id = ur.user_id
-    JOIN roles r ON ur.role_id = r.id
     WHERE u.email = ${email.toLowerCase()} 
     AND u.deleted_at IS NULL
   `;
