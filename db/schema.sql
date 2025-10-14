@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  nome VARCHAR(255) NOT NULL,
+  nome VARCHAR(255) NOT NULL, -- Campo principal para nome
+  name VARCHAR(255), -- Campo alternativo (usado pelo JWT/auth)
   role VARCHAR(50) NOT NULL CHECK (role IN ('admin', 'separador', 'solicitante')),
   ativo BOOLEAN DEFAULT true,
   force_password_change BOOLEAN DEFAULT false,
@@ -38,13 +39,21 @@ CREATE INDEX idx_users_role ON users(role) WHERE deleted_at IS NULL AND ativo = 
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS material_requests (
   id SERIAL PRIMARY KEY,
-  material TEXT NOT NULL,
+  -- Campos legados (mantidos para compatibilidade)
+  material TEXT, -- DEPRECATED: usar material_code + material_description
   quantidade INTEGER NOT NULL CHECK (quantidade > 0),
   justificativa TEXT,
-  solicitante_id INTEGER NOT NULL REFERENCES users(id),
+  solicitante_id INTEGER REFERENCES users(id), -- DEPRECATED: usar requester_name
+  prazo DATE, -- DEPRECATED: usar deadline
+  inicio_producao DATE, -- DEPRECATED: usar production_start_date
+  -- Novos campos (estrutura atual)
+  material_code VARCHAR(100) NOT NULL,
+  material_description TEXT NOT NULL,
+  unidade VARCHAR(20),
+  requester_name VARCHAR(255) NOT NULL,
+  deadline DATE,
+  production_start_date DATE,
   urgencia VARCHAR(20) DEFAULT 'Normal' CHECK (urgencia IN ('Urgente', 'Normal')),
-  prazo DATE,
-  inicio_producao DATE,
   status VARCHAR(50) DEFAULT 'Pendente' CHECK (status IN ('Pendente', 'Em Separação', 'Concluído', 'Cancelado')),
   created_by INTEGER NOT NULL REFERENCES users(id),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

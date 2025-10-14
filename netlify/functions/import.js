@@ -223,38 +223,18 @@ async function handleExecute(event, sql, user) {
             throw new Error(rowErrors.join('; '));
           }
 
-          // Buscar ou criar solicitante
+          // Usar nome do solicitante diretamente do Excel
           const solicitanteName = row.Solicitante || row.solicitante;
-          let [solicitante] = await tx`
-            SELECT id FROM users 
-            WHERE nome ILIKE ${solicitanteName} 
-            AND role = 'solicitante' 
-            AND deleted_at IS NULL
-          `;
-
-          // Se não encontrar, criar usuário temporário (apenas admin pode)
-          if (!solicitante && user.role === 'admin') {
-            const tempEmail = `${solicitanteName.toLowerCase().replace(/\s+/g, '.')}@temp.com`;
-            [solicitante] = await tx`
-              INSERT INTO users (email, password_hash, nome, role, ativo)
-              VALUES (${tempEmail}, 'temp', ${solicitanteName}, 'solicitante', false)
-              ON CONFLICT (email) DO UPDATE SET nome = EXCLUDED.nome
-              RETURNING id
-            `;
-          }
-
-          if (!solicitante) {
-            throw new Error(`Solicitante "${solicitanteName}" não encontrado`);
-          }
 
           // Criar solicitação
           const [request] = await tx`
             INSERT INTO material_requests 
-              (material_code, material_description, quantidade, justificativa, requester_name, urgencia, deadline, production_start_date, status, created_by)
+              (material_code, material_description, quantidade, unidade, justificativa, requester_name, urgencia, deadline, production_start_date, status, created_by)
             VALUES 
               (${row.Material || row.material},
                ${row.Descrição || row.Descricao || row.descrição || row.descricao},
                ${parseInt(row.Quantidade || row.quantidade, 10)},
+               ${row.Unidade || row.unidade || 'pc'},
                ${row.Justificativa || row.justificativa || null},
                ${solicitanteName},
                ${row.Urgencia || row.urgencia || 'Normal'},

@@ -108,12 +108,10 @@ async function handleGet(event, sql, user) {
   const [request] = await sql`
     SELECT 
       mr.*,
-      u_solicitante.nome as solicitante_nome,
-      u_solicitante.email as solicitante_email,
-      u_creator.nome as criado_por_nome
+      mr.requester_name as solicitante_nome,
+      u_creator.name as criado_por_nome
     FROM material_requests mr
-    JOIN users u_solicitante ON mr.solicitante_id = u_solicitante.id
-    JOIN users u_creator ON mr.created_by = u_creator.id
+    LEFT JOIN users u_creator ON mr.created_by = u_creator.id
     WHERE mr.id = ${id} AND mr.deleted_at IS NULL
   `;
 
@@ -122,7 +120,7 @@ async function handleGet(event, sql, user) {
   }
 
   // Solicitantes só podem ver suas próprias solicitações
-  if (user.role === 'solicitante' && request.solicitante_id !== user.userId) {
+  if (user.role === 'solicitante' && request.requester_name !== user.name) {
     throw notFoundError('Solicitação');
   }
 
@@ -204,7 +202,7 @@ async function handleUpdate(event, sql, user) {
   }
 
   // Solicitantes só podem editar suas próprias solicitações
-  if (user.role === 'solicitante' && currentRequest.solicitante_id !== user.userId) {
+  if (user.role === 'solicitante' && currentRequest.requester_name !== user.name) {
     throw notFoundError('Solicitação');
   }
 
@@ -222,15 +220,25 @@ async function handleUpdate(event, sql, user) {
 
   // Usar transação
   const result = await sql.begin(async (tx) => {
-    // 1. Atualizar solicitação
-    const setClauses = Object.keys(updateData).map(key => `${key} = $${key}`).join(', ');
+    // 1. Atualizar solicitação - construir query dinamicamente
+    const updateFields = [];
+    const updateValues = [];
     
-    const [updated] = await tx`
-      UPDATE material_requests
-      SET ${tx(updateData)}
-      WHERE id = ${id}
+    for (const [key, value] of Object.entries(updateData)) {
+      updateFields.push(`${key} = $${updateFields.length + 1}`);
+      updateValues.push(value);
+    }
+    
+    updateValues.push(id); // Para o WHERE id = ?
+    
+    const query = `
+      UPDATE material_requests 
+      SET ${updateFields.join(', ')} 
+      WHERE id = $${updateFields.length + 1} 
       RETURNING *
     `;
+    
+    const [updated] = await tx.unsafe(query, ...updateValues);
 
     // 2. Registrar mudanças no histórico
     for (const [campo, valorNovo] of Object.entries(updateData)) {
