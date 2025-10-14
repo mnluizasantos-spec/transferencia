@@ -258,10 +258,13 @@
             const user = getCurrentUser();
             if (!user) return;
 
-            document.getElementById('user-name').textContent = user.name;
-            document.getElementById('user-role').textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
+            const userName = user.name || user.nome || 'Usuário';
+            const userRole = user.role || 'user';
             
-            const initials = user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            document.getElementById('user-name').textContent = userName;
+            document.getElementById('user-role').textContent = userRole.charAt(0).toUpperCase() + userRole.slice(1);
+            
+            const initials = userName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
             document.getElementById('user-avatar').textContent = initials;
         }
 
