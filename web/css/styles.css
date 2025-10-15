@@ -9,8 +9,8 @@
 }
 
 :root {
-    --primary: #667eea;
-    --primary-dark: #5568d3;
+    --primary: #4682B4;
+    --primary-dark: #3a6d99;
     --success: #27ae60;
     --success-dark: #229954;
     --danger: #e74c3c;
@@ -224,6 +224,12 @@ body {
     display: flex;
     align-items: center;
     gap: 15px;
+}
+
+.logo img {
+    height: 40px;
+    width: auto;
+    object-fit: contain;
 }
 
 .logo {
