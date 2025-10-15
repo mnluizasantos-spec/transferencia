@@ -746,10 +746,23 @@
                     let errorMessage = 'Erro ao excluir';
                     try {
                         const error = await response.json();
-                        console.error('Erro do servidor:', error);
-                        errorMessage = error.message || error.error || errorMessage;
+                        // Log detalhado do erro
+                        console.error('Erro do servidor (status ' + response.status + '):', JSON.stringify(error, null, 2));
+                        
+                        // Tentar extrair mensagem de erro de várias propriedades possíveis
+                        errorMessage = error.message 
+                            || error.error 
+                            || error.msg 
+                            || error.details 
+                            || (typeof error === 'string' ? error : JSON.stringify(error))
+                            || errorMessage;
+                            
+                        console.log('Mensagem de erro extraída:', errorMessage);
                     } catch (e) {
-                        console.error('Erro ao parsear resposta:', e);
+                        console.error('Erro ao parsear resposta JSON:', e);
+                        console.error('Response status:', response.status);
+                        console.error('Response statusText:', response.statusText);
+                        
                         if (response.status === 401) {
                             errorMessage = 'Sessão expirada. Faça login novamente.';
                             setTimeout(() => {
