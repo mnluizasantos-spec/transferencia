@@ -171,6 +171,14 @@ function validateRequestData(data, isUpdate = false) {
     throw validationError('Dados de solicitação inválidos', { errors });
   }
 
+  // Ajustar timezone do deadline para evitar -1 dia
+  let adjustedDeadline = data.deadline;
+  if (data.deadline) {
+    const date = new Date(data.deadline);
+    date.setHours(12, 0, 0, 0); // Meio-dia para evitar problemas de timezone
+    adjustedDeadline = date.toISOString().split('T')[0];
+  }
+
   return {
     material_code: data.material_code && data.material_code.trim() !== '' ? sanitizeString(data.material_code) : undefined,
     material_description: data.material_description && data.material_description.trim() !== '' ? sanitizeString(data.material_description) : undefined,
@@ -179,7 +187,7 @@ function validateRequestData(data, isUpdate = false) {
     requester_name: data.requester_name && data.requester_name.trim() !== '' ? sanitizeString(data.requester_name) : undefined,
     urgencia: data.urgencia ? data.urgencia : (isUpdate ? undefined : 'Normal'),
     status: data.status ? data.status : (isUpdate ? undefined : 'Pendente'),
-    deadline: data.deadline || null,
+    deadline: adjustedDeadline || null,
     production_start_date: data.production_start_date || null,
     justificativa: data.justificativa && data.justificativa.trim() !== '' ? sanitizeString(data.justificativa) : null,
     created_by: data.created_by // Passar created_by sem validação

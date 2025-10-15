@@ -220,22 +220,27 @@ async function handleUpdate(event, sql, user) {
     throw validationError('Nenhum dado para atualizar');
   }
 
-  // Mesclar dados atuais com novos dados
-  const updatedRequest = { ...currentRequest, ...updateData };
+  // Mesclar dados atuais com novos dados (preservar deadline se não enviado)
+  const finalData = { ...currentRequest };
+  Object.keys(updateData).forEach(key => {
+    if (updateData[key] !== undefined) {
+      finalData[key] = updateData[key];
+    }
+  });
 
-  // Atualizar solicitação com todos os campos explicitamente
+  // Atualizar solicitação com todos os campos (preservando os não enviados)
   const [updated] = await sql`
     UPDATE material_requests 
     SET 
-      material_code = ${updatedRequest.material_code},
-      material_description = ${updatedRequest.material_description},
-      quantidade = ${updatedRequest.quantidade},
-      unidade = ${updatedRequest.unidade},
-      requester_name = ${updatedRequest.requester_name},
-      urgencia = ${updatedRequest.urgencia},
-      status = ${updatedRequest.status},
-      deadline = ${updatedRequest.deadline},
-      justificativa = ${updatedRequest.justificativa},
+      material_code = ${finalData.material_code},
+      material_description = ${finalData.material_description},
+      quantidade = ${finalData.quantidade},
+      unidade = ${finalData.unidade},
+      requester_name = ${finalData.requester_name},
+      urgencia = ${finalData.urgencia},
+      status = ${finalData.status},
+      deadline = ${finalData.deadline},
+      justificativa = ${finalData.justificativa},
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ${id}
     RETURNING *

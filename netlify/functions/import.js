@@ -159,16 +159,17 @@ async function handleValidate(event, sql, user) {
 async function handleExecute(event, sql, user) {
   requireRole(user, ['admin', 'solicitante']);
 
-  const contentType = event.headers['content-type'] || '';
+  // Parsear JSON body
+  const requestBody = JSON.parse(event.body || '{}');
   
-  if (!contentType.includes('multipart/form-data') && !event.body) {
+  if (!requestBody.file) {
     throw validationError('Arquivo não fornecido');
   }
 
-  // Parsear arquivo
+  // Converter base64 para buffer
   let fileBuffer;
   try {
-    fileBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
+    fileBuffer = Buffer.from(requestBody.file, 'base64');
   } catch (error) {
     throw validationError('Formato de arquivo inválido');
   }
@@ -200,7 +201,7 @@ async function handleExecute(event, sql, user) {
     INSERT INTO import_batches 
       (user_id, filename, total_rows, status)
     VALUES 
-      (${user.userId}, 'import.xlsx', ${data.length}, 'processing')
+      (${user.userId}, ${requestBody.filename || 'import.xlsx'}, ${data.length}, 'processing')
     RETURNING id
   `;
 
@@ -209,113 +210,98 @@ async function handleExecute(event, sql, user) {
   let errorCount = 0;
   const importErrors = [];
 
-  try {
-    // Processar cada linha em uma transação
-    await sql.begin(async (tx) => {
-      for (let i = 0; i < data.length; i++) {
-        const row = data[i];
-        const rowNumber = i + 2;
+  // Processar cada linha (sem transação devido ao Neon serverless)
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    const rowNumber = i + 2;
 
-        try {
-          const rowErrors = validateImportRow(row, rowNumber);
-          
-          if (rowErrors.length > 0) {
-            throw new Error(rowErrors.join('; '));
-          }
-
-          // Usar nome do solicitante diretamente do Excel
-          const solicitanteName = row.Solicitante || row.solicitante;
-
-          // Criar solicitação
-          const [request] = await tx`
-            INSERT INTO material_requests 
-              (material_code, material_description, quantidade, unidade, justificativa, requester_name, urgencia, deadline, production_start_date, status, created_by)
-            VALUES 
-              (${row.Material || row.material},
-               ${row.Descrição || row.Descricao || row.descrição || row.descricao},
-               ${parseInt(row.Quantidade || row.quantidade, 10)},
-               ${row.Unidade || row.unidade || 'pc'},
-               ${row.Justificativa || row.justificativa || null},
-               ${solicitanteName},
-               ${row.Urgencia || row.urgencia || 'Normal'},
-               ${row.Prazo || row.prazo || null},
-               ${row['Inicio Producao'] || row.inicio_producao || null},
-               'Pendente',
-               ${user.userId})
-            RETURNING id
-          `;
-
-          // Registrar no histórico
-          await tx`
-            INSERT INTO request_history 
-              (request_id, user_id, campo_alterado, valor_novo, acao)
-            VALUES 
-              (${request.id}, ${user.userId}, 'importação', 'via Excel batch ${batchId}', 'criado')
-          `;
-
-          successCount++;
-        } catch (error) {
-          errorCount++;
-          importErrors.push({
-            row: rowNumber,
-            error: error.message
-          });
-          // Continue com próxima linha (não interrompe transação)
-        }
+    try {
+      const rowErrors = validateImportRow(row, rowNumber);
+      
+      if (rowErrors.length > 0) {
+        throw new Error(rowErrors.join('; '));
       }
-    });
 
-    // Atualizar batch como completo
-    await sql`
-      UPDATE import_batches
-      SET 
-        status = 'completed',
-        success_rows = ${successCount},
-        error_rows = ${errorCount},
-        errors_json = ${JSON.stringify(importErrors)}::jsonb,
-        completed_at = CURRENT_TIMESTAMP
-      WHERE id = ${batchId}
-    `;
+      // Usar nome do solicitante diretamente do Excel
+      const solicitanteName = row.Solicitante || row.solicitante;
 
-    // Log de auditoria
-    await logAudit(
-      sql,
-      user.userId,
-      'import_executed',
-      'import_batches',
-      batchId,
-      { successCount, errorCount, totalRows: data.length },
-      getClientIP(event),
-      getUserAgent(event)
-    );
+      // Criar solicitação
+      const [request] = await sql`
+        INSERT INTO material_requests 
+          (material_code, material_description, quantidade, unidade, justificativa, requester_name, urgencia, deadline, production_start_date, status, created_by)
+        VALUES 
+          (${row.Material || row.material},
+           ${row.Descrição || row.Descricao || row.descrição || row.descricao},
+           ${parseInt(row.Quantidade || row.quantidade, 10)},
+           ${row.Unidade || row.unidade || 'pc'},
+           ${row.Justificativa || row.justificativa || null},
+           ${solicitanteName},
+           ${row.Urgencia || row.urgencia || 'Normal'},
+           ${row.Prazo || row.prazo || null},
+           ${row['Inicio Producao'] || row.inicio_producao || null},
+           'Pendente',
+           ${user.userId})
+        RETURNING id
+      `;
 
-    logInfo('import_completed', { batchId, successCount, errorCount, userId: user.userId });
+      // Registrar no histórico
+      await sql`
+        INSERT INTO request_history 
+          (request_id, user_id, campo_alterado, valor_novo, acao)
+        VALUES 
+          (${request.id}, ${user.userId}, 'importação', 'via Excel batch ${batchId}', 'criado')
+      `;
 
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        success: true,
-        batchId,
-        totalRows: data.length,
-        successCount,
-        errorCount,
-        errors: importErrors
-      })
-    };
-  } catch (error) {
-    // Marcar batch como falhado
-    await sql`
-      UPDATE import_batches
-      SET 
-        status = 'failed',
-        errors_json = ${JSON.stringify([{ error: error.message }])}::jsonb,
-        completed_at = CURRENT_TIMESTAMP
-      WHERE id = ${batchId}
-    `;
+      successCount++;
 
-    throw error;
+    } catch (error) {
+      errorCount++;
+      importErrors.push({
+        row: rowNumber,
+        error: error.message
+      });
+      // Continue com próxima linha
+    }
   }
+
+  // Atualizar batch como completo
+  await sql`
+    UPDATE import_batches
+    SET 
+      status = 'completed',
+      success_rows = ${successCount},
+      error_rows = ${errorCount},
+      errors_json = ${JSON.stringify(importErrors)}::jsonb,
+      completed_at = CURRENT_TIMESTAMP
+    WHERE id = ${batchId}
+  `;
+
+  // Log de auditoria
+  await logAudit(
+    sql,
+    user.userId,
+    'import_executed',
+    'import_batches',
+    batchId,
+    { successCount, errorCount, totalRows: data.length },
+    getClientIP(event),
+    getUserAgent(event)
+  );
+
+  logInfo('import_completed', { batchId, successCount, errorCount, userId: user.userId });
+
+  return {
+    statusCode: 200,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      success: true,
+      batchId,
+      imported: successCount,
+      errors: errorCount,
+      total: data.length,
+      details: importErrors
+    })
+  };
 }
 
 /**

@@ -25,7 +25,7 @@ function generatePrintHTML(requests, user, options = {}) {
   const sorted = requests.sort((a, b) => {
     if (a.urgencia === 'Urgente' && b.urgencia !== 'Urgente') return -1;
     if (a.urgencia !== 'Urgente' && b.urgencia === 'Urgente') return 1;
-    if (a.prazo && b.prazo) return new Date(a.prazo) - new Date(b.prazo);
+    if (a.deadline && b.deadline) return new Date(a.deadline) - new Date(b.deadline);
     return 0;
   });
 
@@ -37,11 +37,11 @@ function generatePrintHTML(requests, user, options = {}) {
         <span class="badge ${req.urgencia.toLowerCase()}">${req.urgencia}</span>
       </td>
       <td>
-        <strong>${req.material_description || req.material_code}</strong>
+        <strong>${req.material_code}</strong>
         ${req.justificativa ? `<br><small>${req.justificativa}</small>` : ''}
       </td>
       <td class="center">${req.quantidade}</td>
-      <td>${req.material_description || req.material_code}</td>
+      <td>${req.material_description}</td>
       <td class="center">${req.deadline ? new Date(req.deadline).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '-'}</td>
       ${showCheckboxes ? `
       <td class="center checkbox-col">☐</td>
@@ -235,7 +235,7 @@ function generatePrintHTML(requests, user, options = {}) {
         <th class="center">#</th>
         <th class="center">ID</th>
         <th class="center">Urgência</th>
-        <th>Material</th>
+        <th>Código</th>
         <th class="center">Qtd</th>
         <th>Descrição</th>
         <th class="center">Prazo</th>
