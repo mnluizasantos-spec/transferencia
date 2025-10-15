@@ -42,7 +42,7 @@
     <div id="dashboard-section" class="container">
         <!-- Statistics Cards -->
         <div class="stats-grid">
-            <div class="stat-card primary">
+            <div class="stat-card primary clickable" onclick="filterByAll()">
                 <div class="stat-header">
                     <div>
                         <div class="stat-label">Total de Solicitações</div>
@@ -810,18 +810,58 @@
         };
 
         // Funções de filtro por cards
-        window.filterByOverdue = function() {
+        window.filterByAll = async function() {
+            // Limpar todos os filtros
             document.getElementById('filter-status').value = '';
             document.getElementById('filter-urgencia').value = '';
-            // TODO: Implementar filtro customizado para atrasados
-            loadRequests();
+            document.getElementById('search-input').value = '';
+            
+            // Recarregar todas as solicitações
+            await loadRequests();
         };
 
-        window.filterByDueToday = function() {
+        window.filterByOverdue = async function() {
             document.getElementById('filter-status').value = '';
             document.getElementById('filter-urgencia').value = '';
-            // TODO: Implementar filtro customizado para vencem hoje
-            loadRequests();
+            document.getElementById('search-input').value = '';
+            
+            // Recarregar todas as solicitações
+            await loadRequests();
+            
+            // Filtrar solicitações atrasadas
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            currentRequests = currentRequests.filter(req => {
+                if (!req.deadline || req.status === 'Concluído' || req.status === 'Cancelado') return false;
+                const deadline = new Date(req.deadline);
+                deadline.setHours(0, 0, 0, 0);
+                return deadline < today;
+            });
+            
+            renderRequests();
+        };
+
+        window.filterByDueToday = async function() {
+            document.getElementById('filter-status').value = '';
+            document.getElementById('filter-urgencia').value = '';
+            document.getElementById('search-input').value = '';
+            
+            // Recarregar todas as solicitações
+            await loadRequests();
+            
+            // Filtrar solicitações que vencem hoje
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            currentRequests = currentRequests.filter(req => {
+                if (!req.deadline || req.status === 'Concluído' || req.status === 'Cancelado') return false;
+                const deadline = new Date(req.deadline);
+                deadline.setHours(0, 0, 0, 0);
+                return deadline.getTime() === today.getTime();
+            });
+            
+            renderRequests();
         };
 
         window.filterByCompleted = function() {
