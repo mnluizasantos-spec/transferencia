@@ -198,8 +198,13 @@ body {
 }
 
 /* Espaçamento entre botões de ação na tabela */
+td {
+    white-space: nowrap;
+}
+
 td .btn-small {
     margin-left: 8px;
+    display: inline-block;
 }
 
 td .btn-small:first-child {
