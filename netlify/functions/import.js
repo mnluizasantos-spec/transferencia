@@ -6,7 +6,7 @@
 const XLSX = require('xlsx');
 const { getDB } = require('./utils/db');
 const { withErrorHandling, validationError } = require('./utils/errorHandler');
-const { verifyToken, requireAdminOrSeparador } = require('./utils/middleware');
+const { verifyToken, requireAdmin } = require('./utils/middleware');
 const { validateImportRow, validateFileSize, getClientIP, getUserAgent } = require('./utils/validators');
 const { logInfo, logAudit } = require('./utils/logger');
 
@@ -157,7 +157,7 @@ async function handleValidate(event, sql, user) {
  * Executa importação em massa
  */
 async function handleExecute(event, sql, user) {
-  requireAdminOrSeparador(user);
+  requireAdmin(user);
 
   const contentType = event.headers['content-type'] || '';
   

@@ -142,6 +142,11 @@ function validateRequestData(data, isUpdate = false) {
     errors.push('Nome do solicitante deve ter no máximo 255 caracteres');
   }
 
+  // deadline é obrigatório apenas para criação
+  if (!isUpdate && !data.deadline) {
+    errors.push('Prazo é obrigatório');
+  }
+
   if (data.urgencia && !isValidOption(data.urgencia, ['Urgente', 'Normal'])) {
     errors.push('Urgência inválida. Deve ser: Urgente ou Normal');
   }
@@ -170,10 +175,10 @@ function validateRequestData(data, isUpdate = false) {
     material_code: data.material_code && data.material_code.trim() !== '' ? sanitizeString(data.material_code) : undefined,
     material_description: data.material_description && data.material_description.trim() !== '' ? sanitizeString(data.material_description) : undefined,
     quantidade: data.quantidade ? parseInt(data.quantidade, 10) : undefined,
-    unidade: data.unidade || 'un',
+    unidade: data.unidade ? data.unidade : (isUpdate ? undefined : 'un'),
     requester_name: data.requester_name && data.requester_name.trim() !== '' ? sanitizeString(data.requester_name) : undefined,
-    urgencia: data.urgencia || 'Normal',
-    status: data.status || 'Pendente',
+    urgencia: data.urgencia ? data.urgencia : (isUpdate ? undefined : 'Normal'),
+    status: data.status ? data.status : (isUpdate ? undefined : 'Pendente'),
     deadline: data.deadline || null,
     production_start_date: data.production_start_date || null,
     justificativa: data.justificativa && data.justificativa.trim() !== '' ? sanitizeString(data.justificativa) : null,
