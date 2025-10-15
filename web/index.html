@@ -122,13 +122,14 @@
                         <th>Solicitante</th>
                         <th>Qtd/Unid</th>
                         <th>Status</th>
+                        <th>Observação</th>
                         <th>Atualizado</th>
                         <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody id="requests-tbody">
                     <tr>
-                        <td colspan="11" style="text-align: center; padding: 40px;">
+                        <td colspan="12" style="text-align: center; padding: 40px;">
                             Carregando...
                         </td>
                     </tr>
@@ -340,7 +341,7 @@
             } catch (error) {
                 console.error('Erro ao carregar solicitações:', error);
                 document.getElementById('requests-tbody').innerHTML = `
-                    <tr><td colspan="10" style="text-align: center; color: var(--danger);">
+                    <tr><td colspan="12" style="text-align: center; color: var(--danger);">
                         Erro ao carregar solicitações: ${error.message}
                     </td></tr>
                 `;
@@ -388,7 +389,7 @@
             
             if (currentRequests.length === 0) {
                 tbody.innerHTML = `
-                    <tr><td colspan="11" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    <tr><td colspan="12" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                         Nenhuma solicitação encontrada
                     </td></tr>
                 `;
@@ -410,6 +411,7 @@
                     <td>
                         <span class="badge ${req.status.toLowerCase().replace(' ', '-')}">${req.status}</span>
                     </td>
+                    <td>${req.justificativa ? (req.justificativa.length > 50 ? req.justificativa.substring(0, 50) + '...' : req.justificativa) : '-'}</td>
                     <td>${formatDateTime(req.updated_at)}</td>
                     <td>
                         <button class="btn btn-secondary btn-small" onclick="showHistory(${req.id})" title="Histórico">📋</button>

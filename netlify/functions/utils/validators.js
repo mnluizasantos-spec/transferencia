@@ -179,7 +179,7 @@ function validateRequestData(data, isUpdate = false) {
     adjustedDeadline = date.toISOString().split('T')[0];
   }
 
-  return {
+  const result = {
     material_code: data.material_code && data.material_code.trim() !== '' ? sanitizeString(data.material_code) : undefined,
     material_description: data.material_description && data.material_description.trim() !== '' ? sanitizeString(data.material_description) : undefined,
     quantidade: data.quantidade ? parseInt(data.quantidade, 10) : undefined,
@@ -187,11 +187,41 @@ function validateRequestData(data, isUpdate = false) {
     requester_name: data.requester_name && data.requester_name.trim() !== '' ? sanitizeString(data.requester_name) : undefined,
     urgencia: data.urgencia ? data.urgencia : (isUpdate ? undefined : 'Normal'),
     status: data.status ? data.status : (isUpdate ? undefined : 'Pendente'),
-    deadline: adjustedDeadline || null,
-    production_start_date: data.production_start_date || null,
+    deadline: adjustedDeadline || (isUpdate ? undefined : null),
+    production_start_date: data.production_start_date || (isUpdate ? undefined : null),
     justificativa: data.justificativa && data.justificativa.trim() !== '' ? sanitizeString(data.justificativa) : null,
     created_by: data.created_by // Passar created_by sem validação
   };
+
+  // Filtrar undefined em updates
+  if (isUpdate) {
+    return Object.fromEntries(
+      Object.entries(result).filter(([_, v]) => v !== undefined)
+    );
+  }
+
+  return result;
+}
+
+/**
+ * Converte data brasileira (dd/mm/yyyy) para ISO (yyyy-mm-dd)
+ */
+function parseBrazilianDate(dateStr) {
+  if (!dateStr) return null;
+  
+  // Se já está em formato ISO (yyyy-mm-dd)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+  
+  // Formato brasileiro (dd/mm/yyyy)
+  const match = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (match) {
+    const [_, day, month, year] = match;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  
+  return null;
 }
 
 /**
@@ -216,7 +246,11 @@ function validateImportRow(row, rowNumber) {
     errors.push(`Linha ${rowNumber}: Descrição é obrigatória`);
   }
 
-  if (!quantidade || !isPositiveInteger(quantidade)) {
+  // Limpar separadores de milhares antes de converter
+  const quantidadeStr = String(quantidade).replace(/[.,]/g, '');
+  const quantidadeNum = parseInt(quantidadeStr, 10);
+
+  if (!quantidadeNum || quantidadeNum <= 0) {
     errors.push(`Linha ${rowNumber}: Quantidade deve ser um número positivo`);
   }
 
@@ -232,14 +266,9 @@ function validateImportRow(row, rowNumber) {
     errors.push(`Linha ${rowNumber}: Urgência deve ser "Urgente" ou "Normal"`);
   }
 
-  const prazo = row.Prazo || row.prazo;
-  if (prazo && !isValidDate(prazo)) {
-    errors.push(`Linha ${rowNumber}: Prazo deve ser uma data válida`);
-  }
-
-  const inicio_producao = row['Inicio Producao'] || row.inicio_producao;
-  if (inicio_producao && !isValidDate(inicio_producao)) {
-    errors.push(`Linha ${rowNumber}: Início de produção deve ser uma data válida`);
+  const prazo = parseBrazilianDate(row.Prazo || row.prazo);
+  if (!prazo) {
+    errors.push(`Linha ${rowNumber}: Prazo é obrigatório e deve estar no formato dd/mm/yyyy`);
   }
 
   return errors;
@@ -288,6 +317,7 @@ module.exports = {
   validateUserData,
   validateRequestData,
   validateImportRow,
+  parseBrazilianDate,
   getClientIP,
   getUserAgent,
   validateFileSize,
