@@ -174,7 +174,9 @@ function validateRequestData(data, isUpdate = false) {
   // Ajustar timezone do deadline para evitar -1 dia
   let adjustedDeadline = data.deadline;
   if (data.deadline) {
-    const date = new Date(data.deadline);
+    // Se não tem timezone, adicionar T12:00:00 para evitar problemas
+    const dateString = data.deadline.includes('T') ? data.deadline : data.deadline + 'T12:00:00';
+    const date = new Date(dateString);
     date.setHours(12, 0, 0, 0); // Meio-dia para evitar problemas de timezone
     adjustedDeadline = date.toISOString().split('T')[0];
   }

@@ -549,7 +549,7 @@
                 quantidade: parseInt(document.getElementById('quantidade').value),
                 unidade: document.getElementById('unidade').value,
                 urgencia: document.getElementById('urgencia').value,
-                deadline: document.getElementById('prazo').value ? document.getElementById('prazo').value + 'T12:00:00' : null,
+                deadline: document.getElementById('prazo').value || null,
                 production_start_date: document.getElementById('inicio-producao').value || null,
                 justificativa: document.getElementById('justificativa').value || null
             };
@@ -736,7 +736,13 @@
                     } catch (e) {
                         // Se não conseguir parsear JSON, usar mensagem padrão
                         if (response.status === 401) {
-                            errorMessage = 'Não autorizado. Faça login novamente.';
+                            errorMessage = 'Sessão expirada. Faça login novamente.';
+                            // Redirecionar para login após mostrar mensagem
+                            setTimeout(() => {
+                                localStorage.removeItem('token');
+                                localStorage.removeItem('user');
+                                window.location.href = 'login.html';
+                            }, 2000);
                         } else if (response.status === 403) {
                             errorMessage = 'Sem permissão para excluir.';
                         }
@@ -754,8 +760,18 @@
                 
                 alert('Solicitação excluída com sucesso');
             } catch (error) {
-                alert('Erro ao excluir: ' + error.message);
+                const errorMsg = error?.message || error?.toString() || 'Erro desconhecido ao excluir';
+                alert('Erro ao excluir: ' + errorMsg);
                 console.error('Erro ao excluir:', error);
+                
+                // Se for erro de autenticação, redirecionar para login
+                if (errorMsg.includes('autorizado') || errorMsg.includes('Sessão expirada')) {
+                    setTimeout(() => {
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                        window.location.href = 'login.html';
+                    }, 2000);
+                }
             }
         };
 
