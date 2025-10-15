@@ -26,3 +26,4 @@ ALTER TABLE material_requests
 ALTER COLUMN material_code SET NOT NULL,
 ALTER COLUMN material_description SET NOT NULL,
 ALTER COLUMN requester_name SET NOT NULL;
+

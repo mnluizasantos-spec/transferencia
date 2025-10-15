@@ -123,10 +123,23 @@ async function handleGet(event, sql, user) {
  * Cria nova solicitação
  */
 async function handleCreate(event, sql, user) {
+  console.log('=== CREATE REQUEST DEBUG ===');
+  console.log('User:', JSON.stringify(user));
+  console.log('Body:', event.body);
+  
   const data = JSON.parse(event.body || '{}');
+  console.log('Parsed data:', JSON.stringify(data));
+  
+  // Adicionar created_by do usuário autenticado
+  const requestData = {
+    ...data,
+    created_by: user.userId,
+    requester_name: data.requester_name || user.name || user.nome
+  };
+  console.log('Request data with user info:', JSON.stringify(requestData));
   
   // Validar dados
-  const validatedData = validateRequestData(data, false);
+  const validatedData = validateRequestData(requestData, false);
 
   // Usar transação para garantir atomicidade
   const result = await sql.begin(async (tx) => {

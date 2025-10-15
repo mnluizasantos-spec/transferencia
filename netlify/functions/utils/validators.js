@@ -114,36 +114,32 @@ function validateUserData(data, isUpdate = false) {
 function validateRequestData(data, isUpdate = false) {
   const errors = [];
 
-  if (!isUpdate || data.material_code !== undefined) {
-    if (!data.material_code || data.material_code.trim() === '') {
-      errors.push('Código do material é obrigatório');
-    } else if (data.material_code.length > 100) {
-      errors.push('Código do material deve ter no máximo 100 caracteres');
-    }
+  // material_code é obrigatório apenas para criação
+  if (!isUpdate && (!data.material_code || data.material_code.trim() === '')) {
+    errors.push('Código do material é obrigatório');
+  } else if (data.material_code && data.material_code.length > 100) {
+    errors.push('Código do material deve ter no máximo 100 caracteres');
+  }
+  
+  // material_description é obrigatório apenas para criação
+  if (!isUpdate && (!data.material_description || data.material_description.trim() === '')) {
+    errors.push('Descrição do material é obrigatória');
+  } else if (data.material_description && data.material_description.length > 1000) {
+    errors.push('Descrição do material deve ter no máximo 1000 caracteres');
+  }
+  
+  // quantidade é obrigatória apenas para criação
+  if (!isUpdate && !data.quantidade) {
+    errors.push('Quantidade é obrigatória');
+  } else if (data.quantidade && !isPositiveInteger(data.quantidade)) {
+    errors.push('Quantidade deve ser um número inteiro positivo');
   }
 
-  if (!isUpdate || data.material_description !== undefined) {
-    if (!data.material_description || data.material_description.trim() === '') {
-      errors.push('Descrição do material é obrigatória');
-    } else if (data.material_description.length > 1000) {
-      errors.push('Descrição do material deve ter no máximo 1000 caracteres');
-    }
-  }
-
-  if (!isUpdate || data.quantidade !== undefined) {
-    if (!data.quantidade) {
-      errors.push('Quantidade é obrigatória');
-    } else if (!isPositiveInteger(data.quantidade)) {
-      errors.push('Quantidade deve ser um número inteiro positivo');
-    }
-  }
-
-  if (!isUpdate || data.requester_name !== undefined) {
-    if (!data.requester_name || data.requester_name.trim() === '') {
-      errors.push('Nome do solicitante é obrigatório');
-    } else if (data.requester_name.length > 255) {
-      errors.push('Nome do solicitante deve ter no máximo 255 caracteres');
-    }
+  // requester_name é obrigatório apenas para criação
+  if (!isUpdate && (!data.requester_name || data.requester_name.trim() === '')) {
+    errors.push('Nome do solicitante é obrigatório');
+  } else if (data.requester_name && data.requester_name.length > 255) {
+    errors.push('Nome do solicitante deve ter no máximo 255 caracteres');
   }
 
   if (data.urgencia && !isValidOption(data.urgencia, ['Urgente', 'Normal'])) {
@@ -174,12 +170,14 @@ function validateRequestData(data, isUpdate = false) {
     material_code: data.material_code ? sanitizeString(data.material_code) : undefined,
     material_description: data.material_description ? sanitizeString(data.material_description) : undefined,
     quantidade: data.quantidade ? parseInt(data.quantidade, 10) : undefined,
+    unidade: data.unidade || 'un',
     requester_name: data.requester_name ? sanitizeString(data.requester_name) : undefined,
     urgencia: data.urgencia || 'Normal',
     status: data.status || 'Pendente',
     deadline: data.deadline || null,
     production_start_date: data.production_start_date || null,
-    justificativa: data.justificativa ? sanitizeString(data.justificativa) : null
+    justificativa: data.justificativa ? sanitizeString(data.justificativa) : null,
+    created_by: data.created_by // Passar created_by sem validação
   };
 }
 

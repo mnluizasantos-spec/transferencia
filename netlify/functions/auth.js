@@ -141,8 +141,7 @@ async function handleLogout(event, sql, user) {
     const tokenHash = hashToken(token);
     
     await sql`
-      UPDATE sessions 
-      SET revoked_at = CURRENT_TIMESTAMP 
+      DELETE FROM sessions 
       WHERE token_hash = ${tokenHash} AND user_id = ${user.userId}
     `;
   }
@@ -291,9 +290,8 @@ async function handleChangePassword(event, sql, user) {
 
   // Revogar todas as sessões antigas
   await sql`
-    UPDATE sessions 
-    SET revoked_at = CURRENT_TIMESTAMP 
-    WHERE user_id = ${user.userId} AND revoked_at IS NULL
+    DELETE FROM sessions 
+    WHERE user_id = ${user.userId}
   `;
 
   await logAudit(

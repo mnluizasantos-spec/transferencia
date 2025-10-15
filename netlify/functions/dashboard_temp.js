@@ -110,3 +110,4 @@ exports.handler = withErrorHandling(async (event, sql, user) => {
       };
   }
 }, verifyToken);
+
