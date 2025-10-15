@@ -256,7 +256,7 @@ async function handleExecute(event, sql, user) {
         INSERT INTO request_history 
           (request_id, user_id, campo_alterado, valor_novo, acao)
         VALUES 
-          (${request.id}, ${user.userId}, 'importação', 'via Excel batch ${batchId}', 'criado')
+          (${request.id}, ${user.userId}, 'importação', ${'via Excel batch ' + batchId}, 'criado')
       `;
 
       successCount++;
