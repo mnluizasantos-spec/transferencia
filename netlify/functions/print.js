@@ -41,7 +41,7 @@ function generatePrintHTML(requests, user, options = {}) {
         ${req.justificativa ? `<br><small>${req.justificativa}</small>` : ''}
       </td>
       <td class="center">${req.quantidade}</td>
-      <td>${req.solicitante_nome}</td>
+      <td>${req.material_description || req.material_code}</td>
       <td class="center">${req.deadline ? new Date(req.deadline).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '-'}</td>
       ${showCheckboxes ? `
       <td class="center checkbox-col">☐</td>
@@ -237,7 +237,7 @@ function generatePrintHTML(requests, user, options = {}) {
         <th class="center">Urgência</th>
         <th>Material</th>
         <th class="center">Qtd</th>
-        <th>Solicitante</th>
+        <th>Descrição</th>
         <th class="center">Prazo</th>
         ${showCheckboxes ? `
         <th class="center checkbox-col">Sep</th>

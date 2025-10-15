@@ -29,9 +29,33 @@ async function handleList(event, sql, user) {
   try {
     console.log('Requests List - Iniciando', { userRole: user.role, userName: user.name });
     
-    console.log('Requests List - Executando query');
+    // Obter filtros da query string
+    const params = event.queryStringParameters || {};
+    const statusFilter = params.status;
+    const urgenciaFilter = params.urgencia;
+    const searchFilter = params.search;
     
-    // Todos os usuários veem todas as solicitações (sem filtro)
+    console.log('Filtros recebidos:', { statusFilter, urgenciaFilter, searchFilter });
+    
+    // Construir query com filtros
+    let whereConditions = ['deleted_at IS NULL'];
+    
+    if (statusFilter) {
+      whereConditions.push(`status = '${statusFilter}'`);
+    }
+    
+    if (urgenciaFilter) {
+      whereConditions.push(`urgencia = '${urgenciaFilter}'`);
+    }
+    
+    if (searchFilter) {
+      whereConditions.push(`(material_description ILIKE '%${searchFilter}%' OR material_code ILIKE '%${searchFilter}%' OR requester_name ILIKE '%${searchFilter}%')`);
+    }
+    
+    const whereClause = whereConditions.join(' AND ');
+    
+    console.log('WHERE clause:', whereClause);
+    
     const requests = await sql`
       SELECT 
         id,
@@ -48,7 +72,7 @@ async function handleList(event, sql, user) {
         updated_at,
         created_by
       FROM material_requests
-      WHERE deleted_at IS NULL
+      WHERE ${sql.unsafe(whereClause)}
       ORDER BY created_at DESC
       LIMIT 100
     `;
@@ -180,7 +204,7 @@ async function handleUpdate(event, sql, user) {
   }
 
   // Solicitantes só podem editar suas próprias solicitações
-  if (user.role === 'solicitante' && currentRequest.requester_name !== user.name) {
+  if (user.role === 'solicitante' && currentRequest.created_by !== user.userId) {
     throw notFoundError('Solicitação');
   }
 
