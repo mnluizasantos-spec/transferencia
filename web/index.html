@@ -11,9 +11,6 @@
     <header class="app-header">
         <div class="header-content">
             <div class="header-left">
-                <div class="logo">
-                    <span style="font-size: 24px; font-weight: 700; color: #4682B4;">Antilhas</span>
-                </div>
                 <div class="header-title">
                     <h1>Sistema de Transferência de Material</h1>
                     <div class="header-subtitle">Painel de Controle - Intercompany</div>
@@ -441,9 +438,27 @@
             const hoje = new Date();
             hoje.setHours(0, 0, 0, 0);
             
-            // FIX: Adicionar timezone para evitar -1 dia
-            const deadlineDate = new Date(deadline + 'T00:00:00');
-            deadlineDate.setHours(0, 0, 0, 0);
+            // FIX: Validar deadline antes de processar
+            let deadlineDate;
+            try {
+                // Se já tem timezone, usar direto
+                if (deadline.includes('T')) {
+                    deadlineDate = new Date(deadline);
+                } else {
+                    // Adicionar timezone para evitar -1 dia
+                    deadlineDate = new Date(deadline + 'T00:00:00');
+                }
+                
+                // Validar se é uma data válida
+                if (isNaN(deadlineDate.getTime())) {
+                    return '-';
+                }
+                
+                deadlineDate.setHours(0, 0, 0, 0);
+            } catch (error) {
+                console.error('Erro ao formatar prazo:', deadline, error);
+                return '-';
+            }
             
             const diff = Math.ceil((deadlineDate - hoje) / (1000 * 60 * 60 * 24));
             
@@ -712,13 +727,23 @@
                     }
                 });
                 
-                if (!response.ok) throw new Error('Erro ao excluir');
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.message || 'Erro ao excluir');
+                }
                 
+                // Remover da lista local imediatamente
+                currentRequests = currentRequests.filter(r => r.id !== id);
+                renderRequests();
+                
+                // Recarregar para garantir sincronização
                 await loadRequests();
                 await loadDashboard();
-                showNotification('Solicitação excluída com sucesso', 'success');
+                
+                alert('Solicitação excluída com sucesso');
             } catch (error) {
-                showNotification('Erro ao excluir: ' + error.message, 'error');
+                alert('Erro ao excluir: ' + error.message);
+                console.error('Erro ao excluir:', error);
             }
         };
 
