@@ -1054,9 +1054,16 @@
         // FUNÇÕES DE RELATÓRIOS
         // ============================================================================
 
+        // Variáveis globais para gráficos
+        let materialsChart = null;
+        let statusChart = null;
+        let dailyChart = null;
+
         window.loadReports = async function() {
             const startDate = document.getElementById('report-start-date').value;
             const endDate = document.getElementById('report-end-date').value;
+            
+            console.log('Gerando relatório:', { startDate, endDate });
             
             if (!startDate || !endDate) {
                 alert('Por favor, selecione as datas de início e fim');
@@ -1074,6 +1081,7 @@
                 });
                 
                 const data = await response.json();
+                console.log('Dados recebidos:', data);
                 
                 if (response.ok) {
                     updateReportMetrics(data);
@@ -1105,9 +1113,25 @@
         }
 
         function updateReportCharts(data) {
+            // Destruir gráficos existentes
+            if (materialsChart) {
+                materialsChart.destroy();
+                materialsChart = null;
+            }
+            if (statusChart) {
+                statusChart.destroy();
+                statusChart = null;
+            }
+            if (dailyChart) {
+                dailyChart.destroy();
+                dailyChart = null;
+            }
+            
+            console.log('Dados para gráficos:', data);
+            
             // Gráfico de materiais
             const materialsCtx = document.getElementById('materials-chart').getContext('2d');
-            new Chart(materialsCtx, {
+            materialsChart = new Chart(materialsCtx, {
                 type: 'bar',
                 data: {
                     labels: data.topMaterials?.slice(0, 10).map(m => m.material_description.substring(0, 30) + '...') || [],
@@ -1128,7 +1152,7 @@
 
             // Gráfico de status
             const statusCtx = document.getElementById('status-chart').getContext('2d');
-            new Chart(statusCtx, {
+            statusChart = new Chart(statusCtx, {
                 type: 'doughnut',
                 data: {
                     labels: data.byStatus?.map(s => s.status) || [],
@@ -1145,7 +1169,7 @@
 
             // Gráfico diário
             const dailyCtx = document.getElementById('daily-chart').getContext('2d');
-            new Chart(dailyCtx, {
+            dailyChart = new Chart(dailyCtx, {
                 type: 'line',
                 data: {
                     labels: data.daily?.map(d => d.date) || [],

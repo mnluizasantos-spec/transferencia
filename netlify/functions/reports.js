@@ -30,6 +30,10 @@ exports.handler = withErrorHandling(async (event) => {
     }
 
     try {
+        console.log('=== RELATÓRIOS ===');
+        console.log('User:', user.userId, user.role);
+        console.log('Period:', startDate, 'to', endDate);
+        
         // 1. Materiais mais solicitados
         let topMaterials;
         if (user.role === 'solicitante') {
@@ -136,6 +140,15 @@ exports.handler = withErrorHandling(async (event) => {
         const totalRequests = daily.reduce((sum, day) => sum + day.count, 0);
         const completedRequests = byStatus.find(s => s.status === 'Concluído')?.count || 0;
         const completionRate = totalRequests > 0 ? (completedRequests / totalRequests) * 100 : 0;
+
+        console.log('Results:', {
+            topMaterials: topMaterials.length,
+            avgTime: avgTime[0],
+            daily: daily.length,
+            byStatus: byStatus.length,
+            totalRequests,
+            completedRequests
+        });
 
         const reportData = {
             topMaterials,
