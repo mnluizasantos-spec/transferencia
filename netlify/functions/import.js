@@ -228,7 +228,7 @@ async function handleExecute(event, sql, user) {
       const solicitanteName = row.Solicitante || row.solicitante;
 
       // Sanitizar código do material (trim apenas, sem normalização)
-      const materialCode = (row.Material || row.material || '').trim();
+      const materialCode = String(row.Material || row.material || '').trim();
 
       console.log(`Código do material original: "${row.Material || row.material}"`);
       console.log(`Código do material sanitizado: "${materialCode}"`);
