@@ -731,6 +731,14 @@
                 console.log('Token presente:', !!token);
                 console.log('Usuário atual:', user?.role);
                 
+                // FIX: Se não tem token, redirecionar para login imediatamente
+                if (!token) {
+                    alert('Sessão expirada. Faça login novamente.');
+                    localStorage.removeItem('user');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
                 const response = await fetch(`/.netlify/functions/requests/${id}`, {
                     method: 'DELETE',
                     headers: {
@@ -749,9 +757,9 @@
                         // Log detalhado do erro
                         console.error('Erro do servidor (status ' + response.status + '):', JSON.stringify(error, null, 2));
                         
-                        // Tentar extrair mensagem de erro de várias propriedades possíveis
+                        // FIX: Tentar extrair mensagem de erro tratando estruturas aninhadas
                         errorMessage = error.message 
-                            || error.error 
+                            || (error.error && typeof error.error === 'object' ? error.error.message : error.error)
                             || error.msg 
                             || error.details 
                             || (typeof error === 'string' ? error : JSON.stringify(error))
@@ -800,7 +808,7 @@
                 console.error('Erro ao excluir:', error);
                 
                 // Se for erro de autenticação, redirecionar para login
-                if (errorMsg.includes('autorizado') || errorMsg.includes('Sessão expirada')) {
+                if (errorMsg.includes('autorizado') || errorMsg.includes('Sessão expirada') || errorMsg.includes('Token inválido')) {
                     setTimeout(() => {
                         localStorage.removeItem('token');
                         localStorage.removeItem('user');
