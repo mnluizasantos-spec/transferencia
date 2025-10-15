@@ -17,31 +17,17 @@ async function handleStats(event, sql, user) {
     
     console.log('Dashboard Stats - Executando query');
     
-    let stats;
-    if (user.role === 'solicitante') {
-      const userName = user.name || user.nome || 'Unknown';
-      [stats] = await sql`
-        SELECT 
-          COUNT(*) as total,
-          COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
-          COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
-          COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado') as atrasados,
-          COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado') as vencem_hoje
-        FROM material_requests
-        WHERE deleted_at IS NULL AND (requester_name = ${userName} OR created_by = ${user.userId})
-      `;
-    } else {
-      [stats] = await sql`
-        SELECT 
-          COUNT(*) as total,
-          COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
-          COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
-          COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado') as atrasados,
-          COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado') as vencem_hoje
-        FROM material_requests
-        WHERE deleted_at IS NULL
-      `;
-    }
+    // TODOS os perfis veem TODAS as solicitações
+    const [stats] = await sql`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
+        COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
+        COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado') as atrasados,
+        COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado') as vencem_hoje
+      FROM material_requests
+      WHERE deleted_at IS NULL
+    `;
     
     console.log('Dashboard Stats - Resultado', stats);
     

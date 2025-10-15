@@ -549,7 +549,7 @@
                 quantidade: parseInt(document.getElementById('quantidade').value),
                 unidade: document.getElementById('unidade').value,
                 urgencia: document.getElementById('urgencia').value,
-                deadline: document.getElementById('prazo').value || null,
+                deadline: document.getElementById('prazo').value ? document.getElementById('prazo').value + 'T12:00:00' : null,
                 production_start_date: document.getElementById('inicio-producao').value || null,
                 justificativa: document.getElementById('justificativa').value || null
             };
@@ -728,8 +728,20 @@
                 });
                 
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.message || 'Erro ao excluir');
+                    // FIX: Verificar se resposta tem JSON antes de parsear
+                    let errorMessage = 'Erro ao excluir';
+                    try {
+                        const error = await response.json();
+                        errorMessage = error.message || error.error || errorMessage;
+                    } catch (e) {
+                        // Se não conseguir parsear JSON, usar mensagem padrão
+                        if (response.status === 401) {
+                            errorMessage = 'Não autorizado. Faça login novamente.';
+                        } else if (response.status === 403) {
+                            errorMessage = 'Sem permissão para excluir.';
+                        }
+                    }
+                    throw new Error(errorMessage);
                 }
                 
                 // Remover da lista local imediatamente
