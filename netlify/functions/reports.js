@@ -8,8 +8,10 @@ const { logInfo } = require('./utils/logger');
  * Gera relatórios e análises das solicitações
  */
 exports.handler = withErrorHandling(async (event) => {
+    const sql = getDB();
+    
     // Verificar autenticação
-    const user = await verifyToken(event);
+    const user = await verifyToken(event, sql);
     
     if (event.httpMethod !== 'POST') {
         return {
@@ -26,8 +28,6 @@ exports.handler = withErrorHandling(async (event) => {
             body: JSON.stringify({ error: 'Datas de início e fim são obrigatórias' })
         };
     }
-
-    const sql = getDB();
 
     try {
         // 1. Materiais mais solicitados
