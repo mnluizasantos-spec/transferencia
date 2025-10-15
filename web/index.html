@@ -222,17 +222,18 @@
         <div class="tables-section">
             <div class="table-container">
                 <h3>🏆 Top 10 Materiais Mais Solicitados</h3>
-                <table id="top-materials-table">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Descrição do Material</th>
-                            <th>Quantidade Total</th>
-                            <th>% do Total</th>
-                        </tr>
-                    </thead>
+                     <table id="top-materials-table">
+                         <thead>
+                             <tr>
+                                 <th>Rank</th>
+                                 <th>Descrição do Material</th>
+                                 <th>Quantidade Total</th>
+                                 <th>Solicitações</th>
+                                 <th>% do Total</th>
+                             </tr>
+                         </thead>
                     <tbody>
-                        <tr><td colspan="4" style="text-align: center; padding: 20px;">Selecione um período para gerar o relatório</td></tr>
+                        <tr><td colspan="5" style="text-align: center; padding: 20px;">Selecione um período para gerar o relatório</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1194,17 +1195,26 @@
         function updateReportTables(data) {
             const tbody = document.querySelector('#top-materials-table tbody');
             if (data.topMaterials?.length > 0) {
-                const total = data.topMaterials.reduce((sum, m) => sum + m.total, 0);
-                tbody.innerHTML = data.topMaterials.slice(0, 10).map((material, index) => `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td>${material.material_description}</td>
-                        <td>${material.total}</td>
-                        <td>${Math.round((material.total / total) * 100)}%</td>
-                    </tr>
-                `).join('');
+                // Calcular total geral
+                const grandTotal = data.topMaterials.reduce((sum, m) => sum + parseInt(m.total), 0);
+                
+                tbody.innerHTML = data.topMaterials.slice(0, 10).map((material, index) => {
+                    const quantity = parseInt(material.total);
+                    const requestsCount = parseInt(material.requests_count || 0);
+                    const percentage = grandTotal > 0 ? ((quantity / grandTotal) * 100).toFixed(1) : 0;
+                    
+                    return `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${material.material_description}</td>
+                            <td>${quantity.toLocaleString('pt-BR')}</td>
+                            <td>${requestsCount}</td>
+                            <td>${percentage}%</td>
+                        </tr>
+                    `;
+                }).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Nenhum dado encontrado para o período selecionado</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Nenhum dado encontrado para o período selecionado</td></tr>';
             }
         }
 
