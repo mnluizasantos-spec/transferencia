@@ -273,14 +273,22 @@
             const user = getCurrentUser();
             if (!user) return;
             
-            // Esconder importação Excel APENAS para separador (admin e solicitante podem importar)
+            // Esconder funcionalidades para separador (só pode processar, não criar)
             if (user.role === 'separador') {
+                // Esconder importação Excel
                 const importLabel = document.querySelector('label.btn-info');
                 if (importLabel) importLabel.style.display = 'none';
                 
+                // Esconder template Excel
                 const templateBtn = document.querySelector('.btn-secondary');
                 if (templateBtn && templateBtn.textContent.includes('Template')) {
                     templateBtn.style.display = 'none';
+                }
+                
+                // Esconder botão Nova Solicitação
+                const novaSolicitacaoBtn = document.querySelector('button.btn-success');
+                if (novaSolicitacaoBtn && novaSolicitacaoBtn.textContent.includes('Nova Solicitação')) {
+                    novaSolicitacaoBtn.style.display = 'none';
                 }
             }
         }
