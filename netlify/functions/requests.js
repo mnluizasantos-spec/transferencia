@@ -31,48 +31,25 @@ async function handleList(event, sql, user) {
     
     console.log('Requests List - Executando query');
     
-    const userName = user.name || user.nome || 'Unknown';
-    
-    let requests;
-    if (user.role === 'solicitante') {
-      // Filtrar por nome OU por created_by para garantir que veja suas próprias
-      requests = await sql`
-        SELECT 
-          id,
-          material_code,
-          material_description,
-          quantidade,
-          unidade,
-          requester_name,
-          urgencia,
-          status,
-          created_at,
-          updated_at
-        FROM material_requests
-        WHERE deleted_at IS NULL 
-        AND (requester_name = ${userName} OR created_by = ${user.userId})
-        ORDER BY created_at DESC
-        LIMIT 100
-      `;
-    } else {
-      requests = await sql`
-        SELECT 
-          id,
-          material_code,
-          material_description,
-          quantidade,
-          unidade,
-          requester_name,
-          urgencia,
-          status,
-          created_at,
-          updated_at
-        FROM material_requests
-        WHERE deleted_at IS NULL
-        ORDER BY created_at DESC
-        LIMIT 100
-      `;
-    }
+    // Todos os usuários veem todas as solicitações (sem filtro)
+    const requests = await sql`
+      SELECT 
+        id,
+        material_code,
+        material_description,
+        quantidade,
+        unidade,
+        requester_name,
+        urgencia,
+        status,
+        created_at,
+        updated_at,
+        created_by
+      FROM material_requests
+      WHERE deleted_at IS NULL
+      ORDER BY created_at DESC
+      LIMIT 100
+    `;
     
     console.log('Requests List - Resultado', { count: requests.length });
     

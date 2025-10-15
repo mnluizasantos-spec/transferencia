@@ -16,7 +16,7 @@ async function handleRequestHistory(event, sql, user) {
 
   // Verificar se solicitação existe e usuário tem acesso
   const [request] = await sql`
-    SELECT id, solicitante_id 
+    SELECT id, created_by, requester_name
     FROM material_requests 
     WHERE id = ${requestId} AND deleted_at IS NULL
   `;
@@ -26,7 +26,7 @@ async function handleRequestHistory(event, sql, user) {
   }
 
   // Solicitantes só veem histórico de suas próprias solicitações
-  if (user.role === 'solicitante' && request.solicitante_id !== user.userId) {
+  if (user.role === 'solicitante' && request.created_by !== user.userId) {
     throw notFoundError('Solicitação');
   }
 

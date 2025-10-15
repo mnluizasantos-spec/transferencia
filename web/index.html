@@ -249,6 +249,7 @@
         // Inicialização
         document.addEventListener('DOMContentLoaded', () => {
             initializeUser();
+            setupRoleVisibility();
             loadDashboard();
             loadRequests();
             setupEventListeners();
@@ -266,6 +267,22 @@
             
             const initials = userName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
             document.getElementById('user-avatar').textContent = initials;
+        }
+
+        function setupRoleVisibility() {
+            const user = getCurrentUser();
+            if (!user) return;
+            
+            // Esconder importação Excel para separador e solicitante (só admin pode importar)
+            if (user.role === 'separador' || user.role === 'solicitante') {
+                const importLabel = document.querySelector('label.btn-info');
+                if (importLabel) importLabel.style.display = 'none';
+                
+                const templateBtn = document.querySelector('.btn-secondary');
+                if (templateBtn && templateBtn.textContent.includes('Template')) {
+                    templateBtn.style.display = 'none';
+                }
+            }
         }
 
         function setupEventListeners() {
@@ -550,7 +567,20 @@
 
             try {
                 await updateRequest(id, { status: newStatus });
-                alert(`Status alterado para "${statusLabels[newStatus]}"!`);
+                
+                // Se mudou para "Em Separação", gerar PDF automaticamente
+                if (newStatus === 'Em Separação') {
+                    try {
+                        await printPickingList([id]);
+                        alert(`Status alterado para "Em Separação" e lista de separação gerada!`);
+                    } catch (printError) {
+                        console.error('Erro ao gerar PDF:', printError);
+                        alert(`Status alterado para "Em Separação", mas houve erro ao gerar PDF.`);
+                    }
+                } else {
+                    alert(`Status alterado para "${statusLabels[newStatus]}"!`);
+                }
+                
                 await loadRequests();
             } catch (error) {
                 alert(`Erro: ${error.message}`);
