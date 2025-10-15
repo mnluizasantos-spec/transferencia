@@ -367,6 +367,8 @@
                     buttons += `<button class="btn btn-success btn-small" onclick="completeRequest(${req.id})" title="Concluir">✓</button>`;
                     buttons += `<button class="btn btn-warning btn-small" onclick="updateStatus(${req.id}, 'Em Separação')" title="Marcar como Em Separação">📦</button>`;
                 }
+                // Botão de exclusão (sempre visível para admin)
+                buttons += `<button class="btn btn-danger btn-small" onclick="deleteRequest(${req.id})" title="Excluir">🗑️</button>`;
             } else if (userRole === 'separador') {
                 // Separador: pode alterar status e concluir, mas não editar dados
                 if (!isCompleted) {
@@ -438,7 +440,11 @@
             
             const hoje = new Date();
             hoje.setHours(0, 0, 0, 0);
-            const deadlineDate = new Date(deadline);
+            
+            // FIX: Adicionar timezone para evitar -1 dia
+            const deadlineDate = new Date(deadline + 'T00:00:00');
+            deadlineDate.setHours(0, 0, 0, 0);
+            
             const diff = Math.ceil((deadlineDate - hoje) / (1000 * 60 * 60 * 24));
             
             let className = '';
@@ -515,7 +521,6 @@
             document.getElementById('solicitante').value = request.solicitante_nome || request.requester_name || '';
             document.getElementById('urgencia').value = request.urgencia;
             document.getElementById('prazo').value = request.deadline || '';
-            document.getElementById('inicio-producao').value = request.inicio_producao || request.production_start_date || '';
             document.getElementById('justificativa').value = request.justificativa || '';
 
             document.getElementById('request-modal').classList.add('active');
@@ -691,6 +696,29 @@
                 showNotification('Solicitação cancelada com sucesso', 'success');
             } catch (error) {
                 showNotification('Erro ao cancelar: ' + error.message, 'error');
+            }
+        };
+
+        // Função deletar para admin
+        window.deleteRequest = async function(id) {
+            if (!confirm('Tem certeza que deseja EXCLUIR permanentemente esta solicitação? Esta ação não pode ser desfeita.')) return;
+            
+            try {
+                const response = await fetch(`/.netlify/functions/requests/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Erro ao excluir');
+                
+                await loadRequests();
+                await loadDashboard();
+                showNotification('Solicitação excluída com sucesso', 'success');
+            } catch (error) {
+                showNotification('Erro ao excluir: ' + error.message, 'error');
             }
         };
 

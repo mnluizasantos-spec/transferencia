@@ -28,7 +28,7 @@ async function handleStats(event, sql, user) {
           COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado') as atrasados,
           COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado') as vencem_hoje
         FROM material_requests
-        WHERE deleted_at IS NULL AND requester_name = ${userName}
+        WHERE deleted_at IS NULL AND (requester_name = ${userName} OR created_by = ${user.userId})
       `;
     } else {
       [stats] = await sql`
