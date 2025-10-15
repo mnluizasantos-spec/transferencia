@@ -29,60 +29,108 @@ exports.handler = withErrorHandling(async (event) => {
 
     const sql = getDB();
 
-    // Query baseada no role do usuário
-    const userFilter = user.role === 'solicitante' 
-        ? sql`AND created_by = ${user.userId}`
-        : sql``;
-
     try {
         // 1. Materiais mais solicitados
-        const topMaterials = await sql`
-            SELECT 
-                material_description,
-                SUM(quantidade) as total,
-                COUNT(*) as requests_count
-            FROM material_requests
-            WHERE created_at BETWEEN ${startDate} AND ${endDate}
-            ${userFilter}
-            GROUP BY material_description
-            ORDER BY total DESC
-            LIMIT 10
-        `;
+        let topMaterials;
+        if (user.role === 'solicitante') {
+            topMaterials = await sql`
+                SELECT 
+                    material_description,
+                    SUM(quantidade) as total,
+                    COUNT(*) as requests_count
+                FROM material_requests
+                WHERE created_at BETWEEN ${startDate} AND ${endDate}
+                AND created_by = ${user.userId}
+                GROUP BY material_description
+                ORDER BY total DESC
+                LIMIT 10
+            `;
+        } else {
+            topMaterials = await sql`
+                SELECT 
+                    material_description,
+                    SUM(quantidade) as total,
+                    COUNT(*) as requests_count
+                FROM material_requests
+                WHERE created_at BETWEEN ${startDate} AND ${endDate}
+                GROUP BY material_description
+                ORDER BY total DESC
+                LIMIT 10
+            `;
+        }
 
         // 2. Tempo médio de envio (criação até conclusão)
-        const avgTime = await sql`
-            SELECT 
-                AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/3600) as hours,
-                COUNT(*) as completed_count
-            FROM material_requests
-            WHERE status = 'Concluído'
-            AND created_at BETWEEN ${startDate} AND ${endDate}
-            ${userFilter}
-        `;
+        let avgTime;
+        if (user.role === 'solicitante') {
+            avgTime = await sql`
+                SELECT 
+                    AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/3600) as hours,
+                    COUNT(*) as completed_count
+                FROM material_requests
+                WHERE status = 'Concluído'
+                AND created_at BETWEEN ${startDate} AND ${endDate}
+                AND created_by = ${user.userId}
+            `;
+        } else {
+            avgTime = await sql`
+                SELECT 
+                    AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/3600) as hours,
+                    COUNT(*) as completed_count
+                FROM material_requests
+                WHERE status = 'Concluído'
+                AND created_at BETWEEN ${startDate} AND ${endDate}
+            `;
+        }
 
         // 3. Solicitações por dia
-        const daily = await sql`
-            SELECT 
-                DATE(created_at) as date,
-                COUNT(*) as count
-            FROM material_requests
-            WHERE created_at BETWEEN ${startDate} AND ${endDate}
-            ${userFilter}
-            GROUP BY DATE(created_at)
-            ORDER BY date
-        `;
+        let daily;
+        if (user.role === 'solicitante') {
+            daily = await sql`
+                SELECT 
+                    DATE(created_at) as date,
+                    COUNT(*) as count
+                FROM material_requests
+                WHERE created_at BETWEEN ${startDate} AND ${endDate}
+                AND created_by = ${user.userId}
+                GROUP BY DATE(created_at)
+                ORDER BY date
+            `;
+        } else {
+            daily = await sql`
+                SELECT 
+                    DATE(created_at) as date,
+                    COUNT(*) as count
+                FROM material_requests
+                WHERE created_at BETWEEN ${startDate} AND ${endDate}
+                GROUP BY DATE(created_at)
+                ORDER BY date
+            `;
+        }
 
         // 4. Solicitações por status
-        const byStatus = await sql`
-            SELECT 
-                status,
-                COUNT(*) as count
-            FROM material_requests
-            WHERE created_at BETWEEN ${startDate} AND ${endDate}
-            ${userFilter}
-            GROUP BY status
-            ORDER BY count DESC
-        `;
+        let byStatus;
+        if (user.role === 'solicitante') {
+            byStatus = await sql`
+                SELECT 
+                    status,
+                    COUNT(*) as count
+                FROM material_requests
+                WHERE created_at BETWEEN ${startDate} AND ${endDate}
+                AND created_by = ${user.userId}
+                GROUP BY status
+                ORDER BY count DESC
+            `;
+        } else {
+            byStatus = await sql`
+                SELECT 
+                    status,
+                    COUNT(*) as count
+                FROM material_requests
+                WHERE created_at BETWEEN ${startDate} AND ${endDate}
+                GROUP BY status
+                ORDER BY count DESC
+            `;
+        }
 
         // 5. Estatísticas adicionais
         const totalRequests = daily.reduce((sum, day) => sum + day.count, 0);
