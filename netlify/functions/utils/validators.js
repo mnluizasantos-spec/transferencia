@@ -322,11 +322,13 @@ function validateQuantidade(quantidade, rowNumber) {
 const UNIDADES_PERMITIDAS = ['kg', 'pc', 'm'];
 
 function validateUnidade(unidade, rowNumber) {
-  if (!unidade || unidade.trim() === '') {
+  const unidadeStr = String(unidade || '').trim();
+  
+  if (unidadeStr === '') {
     return { valid: false, error: `Linha ${rowNumber}: Unidade é obrigatória` };
   }
   
-  const unidadeLower = unidade.toLowerCase().trim();
+  const unidadeLower = unidadeStr.toLowerCase();
   
   if (!UNIDADES_PERMITIDAS.includes(unidadeLower)) {
     return { valid: false, error: `Linha ${rowNumber}: Unidade deve ser kg, pc ou m` };
@@ -339,11 +341,14 @@ function validateUnidade(unidade, rowNumber) {
  * Valida código de material aceitando formatos com ou sem hífens
  */
 function validateMaterialCode(materialCode, rowNumber) {
-  if (!materialCode || materialCode.trim() === '') {
+  // Converter para string de forma segura
+  const codeStr = String(materialCode || '').trim();
+  
+  if (codeStr === '') {
     return { valid: false, error: `Linha ${rowNumber}: Código do material é obrigatório` };
   }
   
-  const trimmed = materialCode.trim();
+  const trimmed = codeStr;
   
   // Validar se contém apenas números e hífens
   if (!/^[\d-]+$/.test(trimmed)) {
@@ -373,6 +378,15 @@ function validateImportRow(row, rowNumber) {
   const unidade = row.Unidade || row.unidade;
   const solicitante = row.Solicitante || row.solicitante;
   const urgencia = row.Urgencia || row.urgencia;
+
+  console.log('Campos extraídos:', {
+    material: material,
+    descricao: descricao,
+    quantidade: quantidade,
+    unidade: unidade,
+    solicitante: solicitante,
+    urgencia: urgencia
+  });
 
   // Validar Material usando helper
   const materialValidation = validateMaterialCode(material, rowNumber);
