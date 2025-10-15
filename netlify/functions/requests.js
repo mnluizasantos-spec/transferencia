@@ -37,26 +37,8 @@ async function handleList(event, sql, user) {
     
     console.log('Filtros recebidos:', { statusFilter, urgenciaFilter, searchFilter });
     
-    // Construir query com filtros
-    let whereConditions = ['deleted_at IS NULL'];
-    
-    if (statusFilter) {
-      whereConditions.push(`status = '${statusFilter}'`);
-    }
-    
-    if (urgenciaFilter) {
-      whereConditions.push(`urgencia = '${urgenciaFilter}'`);
-    }
-    
-    if (searchFilter) {
-      whereConditions.push(`(material_description ILIKE '%${searchFilter}%' OR material_code ILIKE '%${searchFilter}%' OR requester_name ILIKE '%${searchFilter}%')`);
-    }
-    
-    const whereClause = whereConditions.join(' AND ');
-    
-    console.log('WHERE clause:', whereClause);
-    
-    const requests = await sql`
+    // Buscar todas as solicitações
+    let requests = await sql`
       SELECT 
         id,
         material_code,
@@ -72,10 +54,28 @@ async function handleList(event, sql, user) {
         updated_at,
         created_by
       FROM material_requests
-      WHERE ${sql.unsafe(whereClause)}
+      WHERE deleted_at IS NULL
       ORDER BY created_at DESC
       LIMIT 100
     `;
+    
+    // Aplicar filtros em JavaScript
+    if (statusFilter) {
+      requests = requests.filter(r => r.status === statusFilter);
+    }
+    
+    if (urgenciaFilter) {
+      requests = requests.filter(r => r.urgencia === urgenciaFilter);
+    }
+    
+    if (searchFilter) {
+      const search = searchFilter.toLowerCase();
+      requests = requests.filter(r => 
+        (r.material_description && r.material_description.toLowerCase().includes(search)) ||
+        (r.material_code && r.material_code.toLowerCase().includes(search)) ||
+        (r.requester_name && r.requester_name.toLowerCase().includes(search))
+      );
+    }
     
     console.log('Requests List - Resultado', { count: requests.length });
     
