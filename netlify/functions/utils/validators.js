@@ -125,31 +125,31 @@ function validateRequestData(data, isUpdate = false) {
 
   // material_code é obrigatório apenas para criação
   if (!isUpdate && (!data.material_code || data.material_code.trim() === '')) {
-    errors.push('Código do material é obrigatório');
+      errors.push('Código do material é obrigatório');
   } else if (data.material_code && data.material_code.trim() !== '' && data.material_code.length > 100) {
-    errors.push('Código do material deve ter no máximo 100 caracteres');
+      errors.push('Código do material deve ter no máximo 100 caracteres');
   }
-  
+
   // material_description é obrigatório apenas para criação
   if (!isUpdate && (!data.material_description || data.material_description.trim() === '')) {
-    errors.push('Descrição do material é obrigatória');
+      errors.push('Descrição do material é obrigatória');
   } else if (data.material_description && data.material_description.trim() !== '' && data.material_description.length > 1000) {
-    errors.push('Descrição do material deve ter no máximo 1000 caracteres');
+      errors.push('Descrição do material deve ter no máximo 1000 caracteres');
   }
-  
+
   // quantidade é obrigatória apenas para criação
   if (!isUpdate && !data.quantidade) {
-    errors.push('Quantidade é obrigatória');
+      errors.push('Quantidade é obrigatória');
   } else if (data.quantidade && !isPositiveInteger(data.quantidade)) {
-    errors.push('Quantidade deve ser um número inteiro positivo');
+      errors.push('Quantidade deve ser um número inteiro positivo');
   }
 
   // requester_name é obrigatório apenas para criação
   if (!isUpdate && (!data.requester_name || data.requester_name.trim() === '')) {
-    errors.push('Nome do solicitante é obrigatório');
+      errors.push('Nome do solicitante é obrigatório');
   } else if (data.requester_name && data.requester_name.length > 255) {
-    errors.push('Nome do solicitante deve ter no máximo 255 caracteres');
-  }
+      errors.push('Nome do solicitante deve ter no máximo 255 caracteres');
+    }
 
   // deadline é obrigatório apenas para criação
   if (!isUpdate && !data.deadline) {
@@ -336,6 +336,29 @@ function validateUnidade(unidade, rowNumber) {
 }
 
 /**
+ * Valida código de material aceitando formatos com ou sem hífens
+ */
+function validateMaterialCode(materialCode, rowNumber) {
+  if (!materialCode || materialCode.trim() === '') {
+    return { valid: false, error: `Linha ${rowNumber}: Código do material é obrigatório` };
+  }
+  
+  const trimmed = materialCode.trim();
+  
+  // Validar se contém apenas números e hífens
+  if (!/^[\d-]+$/.test(trimmed)) {
+    return { valid: false, error: `Linha ${rowNumber}: Código do material deve conter apenas números e hífens` };
+  }
+  
+  // Validar comprimento (10-25 caracteres)
+  if (trimmed.length < 10 || trimmed.length > 25) {
+    return { valid: false, error: `Linha ${rowNumber}: Código do material deve ter entre 10 e 25 caracteres` };
+  }
+  
+  return { valid: true, value: trimmed };
+}
+
+/**
  * Valida dados de importação em massa
  */
 function validateImportRow(row, rowNumber) {
@@ -351,9 +374,10 @@ function validateImportRow(row, rowNumber) {
   const solicitante = row.Solicitante || row.solicitante;
   const urgencia = row.Urgencia || row.urgencia;
 
-  // Validar Material
-  if (!material || material.trim() === '') {
-    errors.push(`Linha ${rowNumber}: Material é obrigatório`);
+  // Validar Material usando helper
+  const materialValidation = validateMaterialCode(material, rowNumber);
+  if (!materialValidation.valid) {
+    errors.push(materialValidation.error);
   }
 
   // Validar Descrição
@@ -392,7 +416,7 @@ function validateImportRow(row, rowNumber) {
   if (errors.length > 0) {
     console.error(`Erros na linha ${rowNumber}:`, errors);
   }
-  
+
   return errors;
 }
 
@@ -441,6 +465,7 @@ module.exports = {
   validateImportRow,
   validateQuantidade,
   validateUnidade,
+  validateMaterialCode,
   parseBrazilianDate,
   parseExcelDate,
   getClientIP,

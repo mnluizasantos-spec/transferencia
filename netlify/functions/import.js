@@ -7,7 +7,7 @@ const XLSX = require('xlsx');
 const { getDB } = require('./utils/db');
 const { withErrorHandling, validationError } = require('./utils/errorHandler');
 const { verifyToken, requireRole } = require('./utils/middleware');
-const { validateImportRow, validateFileSize, getClientIP, getUserAgent, parseBrazilianDate, parseExcelDate } = require('./utils/validators');
+const { validateImportRow, validateFileSize, getClientIP, getUserAgent, parseBrazilianDate, parseExcelDate, validateMaterialCode } = require('./utils/validators');
 const { logInfo, logAudit } = require('./utils/logger');
 
 /**
@@ -227,12 +227,18 @@ async function handleExecute(event, sql, user) {
       // Usar nome do solicitante diretamente do Excel
       const solicitanteName = row.Solicitante || row.solicitante;
 
+      // Sanitizar código do material (trim apenas, sem normalização)
+      const materialCode = (row.Material || row.material || '').trim();
+
+      console.log(`Código do material original: "${row.Material || row.material}"`);
+      console.log(`Código do material sanitizado: "${materialCode}"`);
+
       // Criar solicitação
       const [request] = await sql`
         INSERT INTO material_requests 
           (material_code, material_description, quantidade, unidade, justificativa, requester_name, urgencia, deadline, status, created_by)
         VALUES 
-          (${row.Material || row.material},
+          (${materialCode},
            ${row.Descrição || row.Descricao || row.descrição || row.descricao},
            ${parseInt(String(row.Quantidade || row.quantidade).replace(/[.,]/g, ''), 10)},
            ${row.Unidade || row.unidade || 'pc'},
