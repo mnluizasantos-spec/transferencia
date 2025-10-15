@@ -215,6 +215,42 @@ function validateRequestData(data, isUpdate = false) {
 }
 
 /**
+ * Converte data do Excel (string, número serial ou Date) para ISO (yyyy-mm-dd)
+ */
+function parseExcelDate(dateValue) {
+  if (!dateValue) return null;
+  
+  // Se já é string em formato brasileiro
+  if (typeof dateValue === 'string') {
+    return parseBrazilianDate(dateValue);
+  }
+  
+  // Se é número (serial do Excel)
+  if (typeof dateValue === 'number') {
+    // Excel data serial: dias desde 1900-01-01
+    const excelEpoch = new Date(1900, 0, 1);
+    const date = new Date(excelEpoch.getTime() + (dateValue - 2) * 24 * 60 * 60 * 1000);
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  }
+  
+  // Se é objeto Date
+  if (dateValue instanceof Date) {
+    const year = dateValue.getFullYear();
+    const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+    const day = String(dateValue.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  }
+  
+  return null;
+}
+
+/**
  * Converte data brasileira (dd/mm/yyyy) para ISO (yyyy-mm-dd)
  */
 function parseBrazilianDate(dateStr) {
@@ -254,9 +290,57 @@ function parseBrazilianDate(dateStr) {
 }
 
 /**
+ * Valida quantidade com separadores de milhar
+ */
+function validateQuantidade(quantidade, rowNumber) {
+  // Verificar se existe
+  if (quantidade === null || quantidade === undefined || quantidade === '') {
+    return { valid: false, error: `Linha ${rowNumber}: Quantidade é obrigatória` };
+  }
+  
+  // Converter para string e remover separadores
+  const quantidadeStr = String(quantidade).replace(/[.,\s]/g, '');
+  
+  // Verificar se é numérico
+  if (!/^\d+$/.test(quantidadeStr)) {
+    return { valid: false, error: `Linha ${rowNumber}: Quantidade deve ser um número` };
+  }
+  
+  const quantidadeNum = parseInt(quantidadeStr, 10);
+  
+  // Verificar se é positivo
+  if (quantidadeNum <= 0) {
+    return { valid: false, error: `Linha ${rowNumber}: Quantidade deve ser maior que zero` };
+  }
+  
+  return { valid: true, value: quantidadeNum };
+}
+
+/**
+ * Valida unidade contra lista permitida
+ */
+const UNIDADES_PERMITIDAS = ['kg', 'pc', 'm'];
+
+function validateUnidade(unidade, rowNumber) {
+  if (!unidade || unidade.trim() === '') {
+    return { valid: false, error: `Linha ${rowNumber}: Unidade é obrigatória` };
+  }
+  
+  const unidadeLower = unidade.toLowerCase().trim();
+  
+  if (!UNIDADES_PERMITIDAS.includes(unidadeLower)) {
+    return { valid: false, error: `Linha ${rowNumber}: Unidade deve ser kg, pc ou m` };
+  }
+  
+  return { valid: true, value: unidadeLower };
+}
+
+/**
  * Valida dados de importação em massa
  */
 function validateImportRow(row, rowNumber) {
+  console.log(`Validando linha ${rowNumber}:`, JSON.stringify(row, null, 2));
+  
   const errors = [];
 
   // Verificar campos com diferentes nomes possíveis
@@ -267,39 +351,48 @@ function validateImportRow(row, rowNumber) {
   const solicitante = row.Solicitante || row.solicitante;
   const urgencia = row.Urgencia || row.urgencia;
 
+  // Validar Material
   if (!material || material.trim() === '') {
     errors.push(`Linha ${rowNumber}: Material é obrigatório`);
   }
 
+  // Validar Descrição
   if (!descricao || descricao.trim() === '') {
     errors.push(`Linha ${rowNumber}: Descrição é obrigatória`);
   }
 
-  // Limpar separadores de milhares antes de converter
-  const quantidadeStr = String(quantidade).replace(/[.,]/g, '');
-  const quantidadeNum = parseInt(quantidadeStr, 10);
-
-  if (!quantidadeNum || quantidadeNum <= 0) {
-    errors.push(`Linha ${rowNumber}: Quantidade deve ser um número positivo`);
+  // Validar Quantidade usando helper
+  const quantidadeValidation = validateQuantidade(quantidade, rowNumber);
+  if (!quantidadeValidation.valid) {
+    errors.push(quantidadeValidation.error);
   }
 
-  if (!unidade || unidade.trim() === '') {
-    errors.push(`Linha ${rowNumber}: Unidade é obrigatória`);
+  // Validar Unidade usando helper
+  const unidadeValidation = validateUnidade(unidade, rowNumber);
+  if (!unidadeValidation.valid) {
+    errors.push(unidadeValidation.error);
   }
 
+  // Validar Solicitante
   if (!solicitante || solicitante.trim() === '') {
     errors.push(`Linha ${rowNumber}: Solicitante é obrigatório`);
   }
 
+  // Validar Urgencia
   if (urgencia && !isValidOption(urgencia, ['Urgente', 'Normal'])) {
     errors.push(`Linha ${rowNumber}: Urgência deve ser "Urgente" ou "Normal"`);
   }
 
-  const prazo = parseBrazilianDate(row.Prazo || row.prazo);
+  // Validar Prazo usando parseExcelDate
+  const prazo = parseExcelDate(row.Prazo || row.prazo);
   if (!prazo) {
     errors.push(`Linha ${rowNumber}: Prazo é obrigatório e deve estar no formato dd/mm/yyyy ou dd/mmm (ex: 20/10/2025 ou 20/out)`);
   }
 
+  if (errors.length > 0) {
+    console.error(`Erros na linha ${rowNumber}:`, errors);
+  }
+  
   return errors;
 }
 
@@ -346,7 +439,10 @@ module.exports = {
   validateUserData,
   validateRequestData,
   validateImportRow,
+  validateQuantidade,
+  validateUnidade,
   parseBrazilianDate,
+  parseExcelDate,
   getClientIP,
   getUserAgent,
   validateFileSize,

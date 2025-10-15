@@ -7,7 +7,7 @@ const XLSX = require('xlsx');
 const { getDB } = require('./utils/db');
 const { withErrorHandling, validationError } = require('./utils/errorHandler');
 const { verifyToken, requireRole } = require('./utils/middleware');
-const { validateImportRow, validateFileSize, getClientIP, getUserAgent, parseBrazilianDate } = require('./utils/validators');
+const { validateImportRow, validateFileSize, getClientIP, getUserAgent, parseBrazilianDate, parseExcelDate } = require('./utils/validators');
 const { logInfo, logAudit } = require('./utils/logger');
 
 /**
@@ -214,10 +214,13 @@ async function handleExecute(event, sql, user) {
     const row = data[i];
     const rowNumber = i + 2;
 
+    console.log(`Processando linha ${rowNumber}:`, JSON.stringify(row, null, 2));
+
     try {
       const rowErrors = validateImportRow(row, rowNumber);
       
       if (rowErrors.length > 0) {
+        console.error(`Erros de validação na linha ${rowNumber}:`, rowErrors);
         throw new Error(rowErrors.join('; '));
       }
 
@@ -236,7 +239,7 @@ async function handleExecute(event, sql, user) {
            ${row.Justificativa || row.justificativa || null},
            ${solicitanteName},
            ${row.Urgencia || row.urgencia || 'Normal'},
-           ${parseBrazilianDate(row.Prazo || row.prazo)},
+           ${parseExcelDate(row.Prazo || row.prazo)},
            'Pendente',
            ${user.userId})
         RETURNING id
@@ -251,9 +254,11 @@ async function handleExecute(event, sql, user) {
       `;
 
       successCount++;
+      console.log(`✅ Linha ${rowNumber} importada com sucesso`);
 
     } catch (error) {
       errorCount++;
+      console.error(`❌ Erro na linha ${rowNumber}:`, error.message);
       importErrors.push({
         row: rowNumber,
         error: error.message
