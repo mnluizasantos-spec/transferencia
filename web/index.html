@@ -327,6 +327,42 @@
             }
         }
 
+        function getActionButtons(req) {
+            const user = getCurrentUser();
+            if (!user) return '';
+            
+            const userRole = user.role;
+            const isOwner = req.created_by === user.id || req.requester_name === (user.name || user.nome);
+            const isCompleted = req.status === 'Concluído';
+            
+            let buttons = '';
+            
+            if (userRole === 'admin') {
+                // Admin: pode fazer tudo
+                if (!isCompleted) {
+                    buttons += `<button class="btn btn-primary btn-small" onclick="editRequest(${req.id})" title="Editar">✏️</button>`;
+                    buttons += `<button class="btn btn-success btn-small" onclick="completeRequest(${req.id})" title="Concluir">✓</button>`;
+                    buttons += `<button class="btn btn-warning btn-small" onclick="updateStatus(${req.id}, 'Em Separação')" title="Marcar como Em Separação">📦</button>`;
+                }
+            } else if (userRole === 'separador') {
+                // Separador: pode alterar status e concluir, mas não editar dados
+                if (!isCompleted) {
+                    if (req.status === 'Pendente') {
+                        buttons += `<button class="btn btn-warning btn-small" onclick="updateStatus(${req.id}, 'Em Separação')" title="Iniciar Separação">📦</button>`;
+                    } else if (req.status === 'Em Separação') {
+                        buttons += `<button class="btn btn-success btn-small" onclick="completeRequest(${req.id})" title="Concluir">✓</button>`;
+                    }
+                }
+            } else if (userRole === 'solicitante') {
+                // Solicitante: só pode editar suas próprias solicitações pendentes
+                if (isOwner && !isCompleted && req.status === 'Pendente') {
+                    buttons += `<button class="btn btn-primary btn-small" onclick="editRequest(${req.id})" title="Editar">✏️</button>`;
+                }
+            }
+            
+            return buttons;
+        }
+
         function renderRequests() {
             const tbody = document.getElementById('requests-tbody');
             
@@ -357,10 +393,7 @@
                     <td>${formatDateTime(req.updated_at)}</td>
                     <td>
                         <button class="btn btn-secondary btn-small" onclick="showHistory(${req.id})" title="Histórico">📋</button>
-                        ${req.status !== 'Concluído' ? `
-                            <button class="btn btn-primary btn-small" onclick="editRequest(${req.id})" title="Editar">✏️</button>
-                            <button class="btn btn-success btn-small" onclick="completeRequest(${req.id})" title="Concluir">✓</button>
-                        ` : ''}
+                        ${getActionButtons(req)}
                     </td>
                 </tr>
             `).join('');
@@ -499,6 +532,25 @@
             try {
                 await updateRequest(id, { status: 'Concluído' });
                 alert('Solicitação concluída!');
+                await loadRequests();
+            } catch (error) {
+                alert(`Erro: ${error.message}`);
+            }
+        };
+
+        window.updateStatus = async function(id, newStatus) {
+            const statusLabels = {
+                'Pendente': 'Pendente',
+                'Em Separação': 'Em Separação',
+                'Concluído': 'Concluído',
+                'Cancelado': 'Cancelado'
+            };
+            
+            if (!confirm(`Alterar status para "${statusLabels[newStatus]}"?`)) return;
+
+            try {
+                await updateRequest(id, { status: newStatus });
+                alert(`Status alterado para "${statusLabels[newStatus]}"!`);
                 await loadRequests();
             } catch (error) {
                 alert(`Erro: ${error.message}`);
