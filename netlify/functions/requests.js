@@ -220,25 +220,26 @@ async function handleUpdate(event, sql, user) {
     throw validationError('Nenhum dado para atualizar');
   }
 
-  // Atualizar solicitação - construir query dinamicamente
-  const updateFields = [];
-  const updateValues = [];
-  
-  for (const [key, value] of Object.entries(updateData)) {
-    updateFields.push(`${key} = $${updateFields.length + 1}`);
-    updateValues.push(value);
-  }
-  
-  updateValues.push(id); // Para o WHERE id = ?
-  
-  const query = `
+  // Mesclar dados atuais com novos dados
+  const updatedRequest = { ...currentRequest, ...updateData };
+
+  // Atualizar solicitação com todos os campos explicitamente
+  const [updated] = await sql`
     UPDATE material_requests 
-    SET ${updateFields.join(', ')} 
-    WHERE id = $${updateFields.length + 1} 
+    SET 
+      material_code = ${updatedRequest.material_code},
+      material_description = ${updatedRequest.material_description},
+      quantidade = ${updatedRequest.quantidade},
+      unidade = ${updatedRequest.unidade},
+      requester_name = ${updatedRequest.requester_name},
+      urgencia = ${updatedRequest.urgencia},
+      status = ${updatedRequest.status},
+      deadline = ${updatedRequest.deadline},
+      justificativa = ${updatedRequest.justificativa},
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${id}
     RETURNING *
   `;
-  
-  const [updated] = await sql.unsafe(query, ...updateValues);
 
   // Registrar mudanças no histórico
   for (const [campo, valorNovo] of Object.entries(updateData)) {
