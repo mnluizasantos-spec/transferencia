@@ -441,16 +441,23 @@
             // FIX: Validar deadline antes de processar
             let deadlineDate;
             try {
-                // Se já tem timezone, usar direto
-                if (deadline.includes('T')) {
-                    deadlineDate = new Date(deadline);
+                // Limpar deadline - pode vir com timezone ou não
+                let cleanDeadline = deadline;
+                if (typeof deadline === 'string') {
+                    // Se tem timezone, extrair apenas a data
+                    if (deadline.includes('T')) {
+                        cleanDeadline = deadline.split('T')[0];
+                    }
+                    // Adicionar timezone para evitar problemas
+                    deadlineDate = new Date(cleanDeadline + 'T12:00:00');
                 } else {
-                    // Adicionar timezone para evitar -1 dia
-                    deadlineDate = new Date(deadline + 'T00:00:00');
+                    // Se não é string, tentar converter
+                    deadlineDate = new Date(deadline);
                 }
                 
                 // Validar se é uma data válida
                 if (isNaN(deadlineDate.getTime())) {
+                    console.warn('Data inválida no prazo:', deadline);
                     return '-';
                 }
                 
@@ -535,7 +542,9 @@
             document.getElementById('unidade').value = request.unidade || '';
             document.getElementById('solicitante').value = request.solicitante_nome || request.requester_name || '';
             document.getElementById('urgencia').value = request.urgencia;
-            document.getElementById('prazo').value = request.deadline || '';
+            // Extrair apenas a data (yyyy-mm-dd) do deadline para o input type="date"
+            const prazoValue = request.deadline ? request.deadline.split('T')[0] : '';
+            document.getElementById('prazo').value = prazoValue;
             document.getElementById('justificativa').value = request.justificativa || '';
 
             document.getElementById('request-modal').classList.add('active');

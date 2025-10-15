@@ -47,8 +47,17 @@ function isPositiveInteger(value) {
  */
 function isValidDate(dateString) {
   if (!dateString) return true; // Data opcional
-  const date = new Date(dateString);
-  return date instanceof Date && !isNaN(date);
+  
+  // Aceitar tanto formato yyyy-mm-dd quanto yyyy-mm-ddTHH:mm:ss
+  let date;
+  if (dateString.includes('T')) {
+    date = new Date(dateString);
+  } else {
+    // Se não tem timezone, adicionar para evitar problemas
+    date = new Date(dateString + 'T12:00:00');
+  }
+  
+  return date instanceof Date && !isNaN(date.getTime());
 }
 
 /**
