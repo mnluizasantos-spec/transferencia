@@ -214,7 +214,25 @@ function parseBrazilianDate(dateStr) {
     return dateStr;
   }
   
-  // Formato brasileiro (dd/mm/yyyy)
+  // Mapeamento de meses abreviados
+  const meses = {
+    'jan': '01', 'fev': '02', 'mar': '03', 'abr': '04',
+    'mai': '05', 'jun': '06', 'jul': '07', 'ago': '08',
+    'set': '09', 'out': '10', 'nov': '11', 'dez': '12'
+  };
+  
+  // Formato brasileiro com mês abreviado (dd/mmm ou dd/mmm/yyyy)
+  const matchAbrev = dateStr.match(/^(\d{1,2})[\/\-]([a-z]{3})(?:[\/\-](\d{4}))?$/i);
+  if (matchAbrev) {
+    const [_, day, mesAbrev, year] = matchAbrev;
+    const month = meses[mesAbrev.toLowerCase()];
+    if (month) {
+      const fullYear = year || new Date().getFullYear();
+      return `${fullYear}-${month}-${day.padStart(2, '0')}`;
+    }
+  }
+  
+  // Formato brasileiro numérico (dd/mm/yyyy)
   const match = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (match) {
     const [_, day, month, year] = match;
@@ -268,7 +286,7 @@ function validateImportRow(row, rowNumber) {
 
   const prazo = parseBrazilianDate(row.Prazo || row.prazo);
   if (!prazo) {
-    errors.push(`Linha ${rowNumber}: Prazo é obrigatório e deve estar no formato dd/mm/yyyy`);
+    errors.push(`Linha ${rowNumber}: Prazo é obrigatório e deve estar no formato dd/mm/yyyy ou dd/mmm (ex: 20/10/2025 ou 20/out)`);
   }
 
   return errors;

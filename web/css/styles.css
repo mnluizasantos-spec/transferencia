@@ -226,10 +226,9 @@ body {
     gap: 15px;
 }
 
-.logo img {
-    height: 40px;
-    width: auto;
-    object-fit: contain;
+.logo span {
+    display: block;
+    line-height: 1;
 }
 
 .logo {
