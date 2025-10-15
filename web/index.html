@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Sistema de Transferência de Material</title>
     <link rel="stylesheet" href="/css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <!-- Header -->
@@ -29,8 +30,16 @@
         </div>
     </header>
 
+    <!-- Navigation -->
+    <nav class="app-nav">
+        <div class="nav-container">
+            <a href="#dashboard" class="nav-link active" onclick="showTab('dashboard')">📊 Dashboard</a>
+            <a href="#reports" class="nav-link" onclick="showTab('reports')">📈 Relatórios</a>
+        </div>
+    </nav>
+
     <!-- Main Content -->
-    <div class="container">
+    <div id="dashboard-section" class="container">
         <!-- Statistics Cards -->
         <div class="stats-grid">
             <div class="stat-card primary">
@@ -134,6 +143,99 @@
                     </tr>
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- Reports Section -->
+    <div id="reports-section" class="container" style="display: none;">
+        <div class="section-header">
+            <h2>📈 Relatórios e Análises</h2>
+            <p>Análise detalhada das solicitações de material</p>
+        </div>
+
+        <!-- Date Filters -->
+        <div class="filters-panel">
+            <div class="filter-group">
+                <label for="report-start-date">Data Início:</label>
+                <input type="date" id="report-start-date" class="filter-input">
+            </div>
+            <div class="filter-group">
+                <label for="report-end-date">Data Fim:</label>
+                <input type="date" id="report-end-date" class="filter-input">
+            </div>
+            <button class="btn btn-primary" onclick="loadReports()">📊 Gerar Relatório</button>
+            <button class="btn btn-secondary" onclick="printReports()">🖨️ Imprimir</button>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="reports-stats-grid">
+            <div class="stat-card info">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">Tempo Médio de Envio</div>
+                        <div class="stat-value" id="report-avg-time">-</div>
+                    </div>
+                    <div class="stat-icon">⏱️</div>
+                </div>
+            </div>
+            
+            <div class="stat-card primary">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">Total no Período</div>
+                        <div class="stat-value" id="report-total-period">-</div>
+                    </div>
+                    <div class="stat-icon">📊</div>
+                </div>
+            </div>
+            
+            <div class="stat-card success">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">Taxa de Conclusão</div>
+                        <div class="stat-value" id="report-completion-rate">-</div>
+                    </div>
+                    <div class="stat-icon">✅</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="charts-grid">
+            <div class="chart-container">
+                <h3>📦 Materiais Mais Solicitados</h3>
+                <canvas id="materials-chart"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <h3>📈 Solicitações por Status</h3>
+                <canvas id="status-chart"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <h3>📅 Solicitações por Dia</h3>
+                <canvas id="daily-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Tables -->
+        <div class="tables-section">
+            <div class="table-container">
+                <h3>🏆 Top 10 Materiais Mais Solicitados</h3>
+                <table id="top-materials-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Descrição do Material</th>
+                            <th>Quantidade Total</th>
+                            <th>% do Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="4" style="text-align: center; padding: 20px;">Selecione um período para gerar o relatório</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -914,6 +1016,176 @@
             if (confirm('Deseja realmente sair?')) {
                 await logout();
             }
+        };
+
+        // ============================================================================
+        // NAVEGAÇÃO ENTRE ABAS
+        // ============================================================================
+
+        window.showTab = function(tabName) {
+            // Esconder todas as seções
+            document.getElementById('dashboard-section').style.display = 'none';
+            document.getElementById('reports-section').style.display = 'none';
+            
+            // Remover classe active de todos os links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Mostrar seção selecionada e marcar link como ativo
+            if (tabName === 'dashboard') {
+                document.getElementById('dashboard-section').style.display = 'block';
+                document.querySelector('.nav-link[href="#dashboard"]').classList.add('active');
+            } else if (tabName === 'reports') {
+                document.getElementById('reports-section').style.display = 'block';
+                document.querySelector('.nav-link[href="#reports"]').classList.add('active');
+                
+                // Definir datas padrão (últimos 30 dias)
+                const endDate = new Date();
+                const startDate = new Date();
+                startDate.setDate(endDate.getDate() - 30);
+                
+                document.getElementById('report-end-date').value = endDate.toISOString().split('T')[0];
+                document.getElementById('report-start-date').value = startDate.toISOString().split('T')[0];
+            }
+        };
+
+        // ============================================================================
+        // FUNÇÕES DE RELATÓRIOS
+        // ============================================================================
+
+        window.loadReports = async function() {
+            const startDate = document.getElementById('report-start-date').value;
+            const endDate = document.getElementById('report-end-date').value;
+            
+            if (!startDate || !endDate) {
+                alert('Por favor, selecione as datas de início e fim');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/.netlify/functions/reports', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                    },
+                    body: JSON.stringify({ startDate, endDate })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateReportMetrics(data);
+                    updateReportCharts(data);
+                    updateReportTables(data);
+                } else {
+                    throw new Error(data.error || 'Erro ao carregar relatórios');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar relatórios:', error);
+                alert('Erro ao carregar relatórios: ' + error.message);
+            }
+        };
+
+        function updateReportMetrics(data) {
+            // Tempo médio
+            const avgHours = data.avgTime?.hours || 0;
+            document.getElementById('report-avg-time').textContent = 
+                avgHours > 0 ? `${Math.round(avgHours)}h` : '-';
+            
+            // Total no período
+            const total = data.daily?.reduce((sum, day) => sum + day.count, 0) || 0;
+            document.getElementById('report-total-period').textContent = total;
+            
+            // Taxa de conclusão
+            const completed = data.byStatus?.find(s => s.status === 'Concluído')?.count || 0;
+            const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+            document.getElementById('report-completion-rate').textContent = `${completionRate}%`;
+        }
+
+        function updateReportCharts(data) {
+            // Gráfico de materiais
+            const materialsCtx = document.getElementById('materials-chart').getContext('2d');
+            new Chart(materialsCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.topMaterials?.slice(0, 10).map(m => m.material_description.substring(0, 30) + '...') || [],
+                    datasets: [{
+                        label: 'Quantidade',
+                        data: data.topMaterials?.slice(0, 10).map(m => m.total) || [],
+                        backgroundColor: '#4682B4'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+            // Gráfico de status
+            const statusCtx = document.getElementById('status-chart').getContext('2d');
+            new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.byStatus?.map(s => s.status) || [],
+                    datasets: [{
+                        data: data.byStatus?.map(s => s.count) || [],
+                        backgroundColor: ['#e74c3c', '#f39c12', '#27ae60', '#3498db']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Gráfico diário
+            const dailyCtx = document.getElementById('daily-chart').getContext('2d');
+            new Chart(dailyCtx, {
+                type: 'line',
+                data: {
+                    labels: data.daily?.map(d => d.date) || [],
+                    datasets: [{
+                        label: 'Solicitações',
+                        data: data.daily?.map(d => d.count) || [],
+                        borderColor: '#4682B4',
+                        backgroundColor: 'rgba(70, 130, 180, 0.1)',
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function updateReportTables(data) {
+            const tbody = document.querySelector('#top-materials-table tbody');
+            if (data.topMaterials?.length > 0) {
+                const total = data.topMaterials.reduce((sum, m) => sum + m.total, 0);
+                tbody.innerHTML = data.topMaterials.slice(0, 10).map((material, index) => `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${material.material_description}</td>
+                        <td>${material.total}</td>
+                        <td>${Math.round((material.total / total) * 100)}%</td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">Nenhum dado encontrado para o período selecionado</td></tr>';
+            }
+        }
+
+        window.printReports = function() {
+            window.print();
         };
     </script>
 </body>
