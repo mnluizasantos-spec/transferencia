@@ -200,13 +200,14 @@
             </div>
         </div>
 
-        <!-- Charts Grid -->
-        <div class="charts-grid">
-            <div class="chart-container">
-                <h3>📦 Materiais Mais Solicitados</h3>
-                <canvas id="materials-chart"></canvas>
-            </div>
-            
+        <!-- Gráfico de Materiais Full Width -->
+        <div class="chart-full-width">
+            <h3>📦 Materiais Mais Solicitados</h3>
+            <canvas id="materials-chart"></canvas>
+        </div>
+
+        <!-- Charts Grid - Outros Gráficos -->
+        <div class="charts-grid-two">
             <div class="chart-container">
                 <h3>📈 Solicitações por Status</h3>
                 <canvas id="status-chart"></canvas>
@@ -1135,7 +1136,7 @@
             materialsChart = new Chart(materialsCtx, {
                 type: 'bar',
                 data: {
-                    labels: data.topMaterials?.slice(0, 10).map(m => m.material_description.substring(0, 30) + '...') || [],
+                    labels: data.topMaterials?.slice(0, 10).map(m => m.material_description.substring(0, 50) + '...') || [],
                     datasets: [{
                         label: 'Quantidade',
                         data: data.topMaterials?.slice(0, 10).map(m => m.total) || [],
@@ -1146,7 +1147,24 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: { beginAtZero: true }
+                        x: { 
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString('pt-BR');
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Quantidade: ' + context.parsed.y.toLocaleString('pt-BR');
+                                }
+                            }
+                        }
                     }
                 }
             });

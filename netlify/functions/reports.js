@@ -157,6 +157,8 @@ exports.handler = withErrorHandling(async (event) => {
             totalRequests,
             completedRequests
         });
+        
+        console.log('Query topMaterials:', topMaterials);
 
         const reportData = {
             topMaterials,
