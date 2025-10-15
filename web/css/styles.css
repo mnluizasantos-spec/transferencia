@@ -193,18 +193,19 @@ body {
 }
 
 .btn-small {
-    padding: 6px 12px;
-    font-size: 12px;
+    padding: 8px 16px;
+    font-size: 13px;
 }
 
 /* Espaçamento entre botões de ação na tabela */
 td .btn-small {
-    margin-left: 8px;
-    display: inline-block;
+    display: block;
+    margin-bottom: 8px;
+    width: 100%;
 }
 
-td .btn-small:first-child {
-    margin-left: 0;
+td .btn-small:last-child {
+    margin-bottom: 0;
 }
 
 /* Larguras específicas das colunas da tabela */
@@ -212,13 +213,32 @@ table th:nth-child(1), table td:nth-child(1) { width: 60px; } /* ID */
 table th:nth-child(2), table td:nth-child(2) { width: 100px; } /* Urgência */
 table th:nth-child(3), table td:nth-child(3) { width: 120px; } /* Prazo */
 table th:nth-child(4), table td:nth-child(4) { width: 120px; } /* Código */
-table th:nth-child(5), table td:nth-child(5) { width: auto; } /* Descrição */
+table th:nth-child(5), table td:nth-child(5) { 
+    width: auto; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    max-width: 300px; 
+} /* Descrição */
 table th:nth-child(6), table td:nth-child(6) { width: 120px; } /* Solicitante */
 table th:nth-child(7), table td:nth-child(7) { width: 100px; } /* QTD/UNID */
 table th:nth-child(8), table td:nth-child(8) { width: 120px; } /* Status */
 table th:nth-child(9), table td:nth-child(9) { width: 150px; } /* Observação */
 table th:nth-child(10), table td:nth-child(10) { width: 150px; } /* Atualizado */
-table th:nth-child(11), table td:nth-child(11) { width: 150px; white-space: nowrap; } /* Ações */
+table th:nth-child(11), table td:nth-child(11) { width: 180px; } /* Ações */
+
+/* Estilos específicos para tabela de relatórios */
+#top-materials-table th {
+    white-space: nowrap;
+    padding: 12px 8px;
+    font-size: 11px;
+}
+
+#top-materials-table th:nth-child(1) { width: 60px; } /* Rank */
+#top-materials-table th:nth-child(2) { width: auto; min-width: 200px; } /* Descrição do Material */
+#top-materials-table th:nth-child(3) { width: 120px; } /* Quantidade Total */
+#top-materials-table th:nth-child(4) { width: 100px; } /* Solicitações */
+#top-materials-table th:nth-child(5) { width: 80px; } /* % do Total */
 
 /* ============================================================================
    NAVIGATION
