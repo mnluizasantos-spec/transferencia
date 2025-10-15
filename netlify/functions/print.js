@@ -18,8 +18,8 @@ const { getClientIP, getUserAgent } = require('./utils/validators');
 function generatePrintHTML(requests, user, options = {}) {
   const { title = 'Lista de Separação', showCheckboxes = true } = options;
   
-  const hoje = new Date().toLocaleDateString('pt-BR');
-  const agora = new Date().toLocaleTimeString('pt-BR');
+  const hoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const agora = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
   // Ordenar: urgentes primeiro, depois por prazo
   const sorted = requests.sort((a, b) => {
@@ -37,12 +37,12 @@ function generatePrintHTML(requests, user, options = {}) {
         <span class="badge ${req.urgencia.toLowerCase()}">${req.urgencia}</span>
       </td>
       <td>
-        <strong>${req.material}</strong>
+        <strong>${req.material_description || req.material_code}</strong>
         ${req.justificativa ? `<br><small>${req.justificativa}</small>` : ''}
       </td>
       <td class="center">${req.quantidade}</td>
       <td>${req.solicitante_nome}</td>
-      <td class="center">${req.prazo ? new Date(req.prazo).toLocaleDateString('pt-BR') : '-'}</td>
+      <td class="center">${req.deadline ? new Date(req.deadline).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '-'}</td>
       ${showCheckboxes ? `
       <td class="center checkbox-col">☐</td>
       <td class="center checkbox-col">☐</td>

@@ -42,6 +42,8 @@ async function handleList(event, sql, user) {
         requester_name,
         urgencia,
         status,
+        deadline,
+        justificativa,
         created_at,
         updated_at,
         created_by

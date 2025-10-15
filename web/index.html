@@ -407,7 +407,7 @@
                     <td>
                         <span class="badge ${req.urgencia.toLowerCase()}">${req.urgencia}</span>
                     </td>
-                    <td>${formatPrazo(req.prazo || req.deadline, req.status)}</td>
+                    <td>${formatPrazo(req.deadline, req.status)}</td>
                     <td><strong>${req.material_code || req.material}</strong></td>
                     <td>${req.material_description || '-'}</td>
                     <td>${req.solicitante_nome || req.requester_name}</td>
@@ -429,13 +429,13 @@
             });
         }
 
-        function formatPrazo(prazo, status) {
-            if (!prazo || status === 'Concluído') return '-';
+        function formatPrazo(deadline, status) {
+            if (!deadline || status === 'Concluído') return '-';
             
             const hoje = new Date();
             hoje.setHours(0, 0, 0, 0);
-            const prazoDate = new Date(prazo);
-            const diff = Math.ceil((prazoDate - hoje) / (1000 * 60 * 60 * 24));
+            const deadlineDate = new Date(deadline);
+            const diff = Math.ceil((deadlineDate - hoje) / (1000 * 60 * 60 * 24));
             
             let className = '';
             let label = '';
@@ -451,7 +451,7 @@
                 label = `<br><small>(${diff} dias)</small>`;
             }
             
-            return `<span style="color: var(--${className}); font-weight: 600;">${prazoDate.toLocaleDateString('pt-BR')}${label}</span>`;
+            return `<span style="color: var(--${className}); font-weight: 600;">${deadlineDate.toLocaleDateString('pt-BR')}${label}</span>`;
         }
 
         function formatDateTime(dateString) {
@@ -510,7 +510,7 @@
             document.getElementById('unidade').value = request.unidade || '';
             document.getElementById('solicitante').value = request.solicitante_nome || request.requester_name || '';
             document.getElementById('urgencia').value = request.urgencia;
-            document.getElementById('prazo').value = request.prazo || request.deadline || '';
+            document.getElementById('prazo').value = request.deadline || '';
             document.getElementById('inicio-producao').value = request.inicio_producao || request.production_start_date || '';
             document.getElementById('justificativa').value = request.justificativa || '';
 
