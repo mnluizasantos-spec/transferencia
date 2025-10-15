@@ -141,39 +141,36 @@ async function handleCreate(event, sql, user) {
   // Validar dados
   const validatedData = validateRequestData(requestData, false);
 
-  // Usar transação para garantir atomicidade
-  const result = await sql.begin(async (tx) => {
-    // 1. Criar solicitação
-    const [newRequest] = await tx`
-      INSERT INTO material_requests 
-        (material_code, material_description, quantidade, justificativa, requester_name, urgencia, deadline, production_start_date, status, created_by)
-      VALUES 
-        (${validatedData.material_code}, ${validatedData.material_description}, ${validatedData.quantidade}, 
-         ${validatedData.justificativa}, ${validatedData.requester_name}, ${validatedData.urgencia}, 
-         ${validatedData.deadline}, ${validatedData.production_start_date}, 'Pendente', ${user.userId})
-      RETURNING *
-    `;
+  // Criar solicitação (Neon serverless não suporta transações complexas)
+  const [newRequest] = await sql`
+    INSERT INTO material_requests 
+      (material_code, material_description, quantidade, unidade, justificativa, requester_name, urgencia, deadline, production_start_date, status, created_by)
+    VALUES 
+      (${validatedData.material_code}, ${validatedData.material_description}, ${validatedData.quantidade}, 
+       ${validatedData.unidade}, ${validatedData.justificativa}, ${validatedData.requester_name}, ${validatedData.urgencia}, 
+       ${validatedData.deadline}, ${validatedData.production_start_date}, 'Pendente', ${user.userId})
+    RETURNING *
+  `;
 
-    // 2. Registrar no histórico
-    await tx`
-      INSERT INTO request_history 
-        (request_id, user_id, campo_alterado, valor_novo, acao)
-      VALUES 
-        (${newRequest.id}, ${user.userId}, 'solicitação', 'criada', 'criado')
-    `;
+  // Registrar no histórico
+  await sql`
+    INSERT INTO request_history 
+      (request_id, user_id, campo_alterado, valor_novo, acao)
+    VALUES 
+      (${newRequest.id}, ${user.userId}, 'solicitação', 'criada', 'criado')
+  `;
 
-    // 3. Log de auditoria
-    await tx`
-      INSERT INTO audit_logs 
-        (user_id, acao, tabela_afetada, registro_id, detalhes_json, ip_address, user_agent)
-      VALUES 
-        (${user.userId}, 'request_created', 'material_requests', ${newRequest.id}, 
-         ${JSON.stringify({ material: newRequest.material, quantidade: newRequest.quantidade })}::jsonb,
-         ${getClientIP(event)}, ${getUserAgent(event)})
-    `;
+  // Log de auditoria
+  await sql`
+    INSERT INTO audit_logs 
+      (user_id, acao, tabela_afetada, registro_id, detalhes_json, ip_address, user_agent)
+    VALUES 
+      (${user.userId}, 'request_created', 'material_requests', ${newRequest.id}, 
+       ${JSON.stringify({ material_code: newRequest.material_code, quantidade: newRequest.quantidade })}::jsonb,
+       ${getClientIP(event)}, ${getUserAgent(event)})
+  `;
 
-    return newRequest;
-  });
+  const result = newRequest;
 
   logInfo('request_created', { requestId: result.id, userId: user.userId });
 
@@ -218,56 +215,53 @@ async function handleUpdate(event, sql, user) {
     throw validationError('Nenhum dado para atualizar');
   }
 
-  // Usar transação
-  const result = await sql.begin(async (tx) => {
-    // 1. Atualizar solicitação - construir query dinamicamente
-    const updateFields = [];
-    const updateValues = [];
-    
-    for (const [key, value] of Object.entries(updateData)) {
-      updateFields.push(`${key} = $${updateFields.length + 1}`);
-      updateValues.push(value);
-    }
-    
-    updateValues.push(id); // Para o WHERE id = ?
-    
-    const query = `
-      UPDATE material_requests 
-      SET ${updateFields.join(', ')} 
-      WHERE id = $${updateFields.length + 1} 
-      RETURNING *
-    `;
-    
-    const [updated] = await tx.unsafe(query, ...updateValues);
+  // Atualizar solicitação - construir query dinamicamente
+  const updateFields = [];
+  const updateValues = [];
+  
+  for (const [key, value] of Object.entries(updateData)) {
+    updateFields.push(`${key} = $${updateFields.length + 1}`);
+    updateValues.push(value);
+  }
+  
+  updateValues.push(id); // Para o WHERE id = ?
+  
+  const query = `
+    UPDATE material_requests 
+    SET ${updateFields.join(', ')} 
+    WHERE id = $${updateFields.length + 1} 
+    RETURNING *
+  `;
+  
+  const [updated] = await sql.unsafe(query, ...updateValues);
 
-    // 2. Registrar mudanças no histórico
-    for (const [campo, valorNovo] of Object.entries(updateData)) {
-      const valorAnterior = currentRequest[campo];
+  // Registrar mudanças no histórico
+  for (const [campo, valorNovo] of Object.entries(updateData)) {
+    const valorAnterior = currentRequest[campo];
+    
+    if (valorAnterior !== valorNovo) {
+      const acao = campo === 'status' ? 'status_mudado' : 'atualizado';
       
-      if (valorAnterior !== valorNovo) {
-        const acao = campo === 'status' ? 'status_mudado' : 'atualizado';
-        
-        await tx`
-          INSERT INTO request_history 
-            (request_id, user_id, campo_alterado, valor_anterior, valor_novo, acao)
-          VALUES 
-            (${id}, ${user.userId}, ${campo}, ${String(valorAnterior)}, ${String(valorNovo)}, ${acao})
-        `;
-      }
+      await sql`
+        INSERT INTO request_history 
+          (request_id, user_id, campo_alterado, valor_anterior, valor_novo, acao)
+        VALUES 
+          (${id}, ${user.userId}, ${campo}, ${String(valorAnterior)}, ${String(valorNovo)}, ${acao})
+      `;
     }
+  }
 
-    // 3. Log de auditoria
-    await tx`
-      INSERT INTO audit_logs 
-        (user_id, acao, tabela_afetada, registro_id, detalhes_json, ip_address, user_agent)
-      VALUES 
-        (${user.userId}, 'request_updated', 'material_requests', ${id}, 
-         ${JSON.stringify(updateData)}::jsonb,
-         ${getClientIP(event)}, ${getUserAgent(event)})
-    `;
+  // Log de auditoria
+  await sql`
+    INSERT INTO audit_logs 
+      (user_id, acao, tabela_afetada, registro_id, detalhes_json, ip_address, user_agent)
+    VALUES 
+      (${user.userId}, 'request_updated', 'material_requests', ${id}, 
+       ${JSON.stringify(updateData)}::jsonb,
+       ${getClientIP(event)}, ${getUserAgent(event)})
+  `;
 
-    return updated;
-  });
+  const result = updated;
 
   logInfo('request_updated', { requestId: id, userId: user.userId, changes: Object.keys(updateData) });
 
@@ -297,31 +291,29 @@ async function handleDelete(event, sql, user) {
     throw notFoundError('Solicitação');
   }
 
-  await sql.begin(async (tx) => {
-    // Soft delete
-    await tx`
-      UPDATE material_requests 
-      SET deleted_at = CURRENT_TIMESTAMP 
-      WHERE id = ${id}
-    `;
+  // Soft delete
+  await sql`
+    UPDATE material_requests 
+    SET deleted_at = CURRENT_TIMESTAMP 
+    WHERE id = ${id}
+  `;
 
-    // Registrar no histórico
-    await tx`
-      INSERT INTO request_history 
-        (request_id, user_id, campo_alterado, valor_novo, acao)
-      VALUES 
-        (${id}, ${user.userId}, 'solicitação', 'excluída', 'cancelado')
-    `;
+  // Registrar no histórico
+  await sql`
+    INSERT INTO request_history 
+      (request_id, user_id, campo_alterado, valor_novo, acao)
+    VALUES 
+      (${id}, ${user.userId}, 'solicitação', 'excluída', 'cancelado')
+  `;
 
-    // Log de auditoria
-    await tx`
-      INSERT INTO audit_logs 
-        (user_id, acao, tabela_afetada, registro_id, ip_address, user_agent)
-      VALUES 
-        (${user.userId}, 'request_deleted', 'material_requests', ${id},
-         ${getClientIP(event)}, ${getUserAgent(event)})
-    `;
-  });
+  // Log de auditoria
+  await sql`
+    INSERT INTO audit_logs 
+      (user_id, acao, tabela_afetada, registro_id, ip_address, user_agent)
+    VALUES 
+      (${user.userId}, 'request_deleted', 'material_requests', ${id},
+       ${getClientIP(event)}, ${getUserAgent(event)})
+  `;
 
   logInfo('request_deleted', { requestId: id, userId: user.userId });
 

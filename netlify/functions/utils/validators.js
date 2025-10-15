@@ -117,14 +117,14 @@ function validateRequestData(data, isUpdate = false) {
   // material_code é obrigatório apenas para criação
   if (!isUpdate && (!data.material_code || data.material_code.trim() === '')) {
     errors.push('Código do material é obrigatório');
-  } else if (data.material_code && data.material_code.length > 100) {
+  } else if (data.material_code && data.material_code.trim() !== '' && data.material_code.length > 100) {
     errors.push('Código do material deve ter no máximo 100 caracteres');
   }
   
   // material_description é obrigatório apenas para criação
   if (!isUpdate && (!data.material_description || data.material_description.trim() === '')) {
     errors.push('Descrição do material é obrigatória');
-  } else if (data.material_description && data.material_description.length > 1000) {
+  } else if (data.material_description && data.material_description.trim() !== '' && data.material_description.length > 1000) {
     errors.push('Descrição do material deve ter no máximo 1000 caracteres');
   }
   
@@ -167,16 +167,16 @@ function validateRequestData(data, isUpdate = false) {
   }
 
   return {
-    material_code: data.material_code ? sanitizeString(data.material_code) : undefined,
-    material_description: data.material_description ? sanitizeString(data.material_description) : undefined,
+    material_code: data.material_code && data.material_code.trim() !== '' ? sanitizeString(data.material_code) : undefined,
+    material_description: data.material_description && data.material_description.trim() !== '' ? sanitizeString(data.material_description) : undefined,
     quantidade: data.quantidade ? parseInt(data.quantidade, 10) : undefined,
     unidade: data.unidade || 'un',
-    requester_name: data.requester_name ? sanitizeString(data.requester_name) : undefined,
+    requester_name: data.requester_name && data.requester_name.trim() !== '' ? sanitizeString(data.requester_name) : undefined,
     urgencia: data.urgencia || 'Normal',
     status: data.status || 'Pendente',
     deadline: data.deadline || null,
     production_start_date: data.production_start_date || null,
-    justificativa: data.justificativa ? sanitizeString(data.justificativa) : null,
+    justificativa: data.justificativa && data.justificativa.trim() !== '' ? sanitizeString(data.justificativa) : null,
     created_by: data.created_by // Passar created_by sem validação
   };
 }
