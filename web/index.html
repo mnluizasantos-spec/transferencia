@@ -231,6 +231,26 @@
         import { requireAuth, getCurrentUser, logout, isAdmin, isSeparador } from '/js/auth.js';
         import { getRequests, getDashboardStats, createRequest, updateRequest, deleteRequest, getRequestHistory, printPickingList } from '/js/api.js';
 
+        // Verificar token ao carregar página
+        window.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('auth_token');
+            const user = localStorage.getItem('current_user');
+            
+            // Se tem user mas não tem token, limpar tudo e redirecionar
+            if (user && !token) {
+                console.warn('Usuário sem token válido, redirecionando para login');
+                localStorage.removeItem('current_user');
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Se não tem nem user nem token, redirecionar
+            if (!user && !token) {
+                window.location.href = 'login.html';
+                return;
+            }
+        });
+
         // Verificar autenticação
         if (!requireAuth()) {
             window.location.href = '/login.html';
@@ -726,7 +746,7 @@
             
             try {
                 console.log('Tentando excluir solicitação:', id);
-                const token = localStorage.getItem('token');
+                const token = localStorage.getItem('auth_token');
                 const user = getCurrentUser();
                 console.log('Token presente:', !!token);
                 console.log('Usuário atual:', user?.role);

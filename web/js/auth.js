@@ -26,8 +26,18 @@ export async function login(email, password) {
     }
 
     if (data.token) {
+        console.log('Login bem-sucedido, salvando token:', !!data.token);
+        console.log('Salvando user:', data.user);
+        
         localStorage.setItem(TOKEN_KEY, data.token);
         localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+        
+        // Verificar se salvou
+        const savedToken = localStorage.getItem(TOKEN_KEY);
+        const savedUser = localStorage.getItem(USER_KEY);
+        console.log('Token salvo?', !!savedToken);
+        console.log('User salvo?', !!savedUser);
+        
         return data.user;
     }
 
@@ -78,6 +88,14 @@ export function getToken() {
  */
 export function getCurrentUser() {
     const userJson = localStorage.getItem(USER_KEY);
+    const token = localStorage.getItem(TOKEN_KEY);
+    
+    // Se não tem token, limpar user também
+    if (!token) {
+        localStorage.removeItem(USER_KEY);
+        return null;
+    }
+    
     return userJson ? JSON.parse(userJson) : null;
 }
 
