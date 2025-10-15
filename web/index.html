@@ -830,13 +830,12 @@
             
             // Filtrar solicitações atrasadas
             const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const todayStr = today.toISOString().split('T')[0]; // yyyy-mm-dd
             
             currentRequests = currentRequests.filter(req => {
                 if (!req.deadline || req.status === 'Concluído' || req.status === 'Cancelado') return false;
-                const deadline = new Date(req.deadline);
-                deadline.setHours(0, 0, 0, 0);
-                return deadline < today;
+                const deadlineStr = req.deadline.split('T')[0]; // yyyy-mm-dd
+                return deadlineStr < todayStr;
             });
             
             renderRequests();
@@ -852,13 +851,12 @@
             
             // Filtrar solicitações que vencem hoje
             const today = new Date();
-            today.setHours(0, 0, 0, 0);
+            const todayStr = today.toISOString().split('T')[0]; // yyyy-mm-dd
             
             currentRequests = currentRequests.filter(req => {
                 if (!req.deadline || req.status === 'Concluído' || req.status === 'Cancelado') return false;
-                const deadline = new Date(req.deadline);
-                deadline.setHours(0, 0, 0, 0);
-                return deadline.getTime() === today.getTime();
+                const deadlineStr = req.deadline.split('T')[0]; // yyyy-mm-dd
+                return deadlineStr === todayStr;
             });
             
             renderRequests();
