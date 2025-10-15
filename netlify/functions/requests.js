@@ -35,6 +35,7 @@ async function handleList(event, sql, user) {
     
     let requests;
     if (user.role === 'solicitante') {
+      // Filtrar por nome OU por created_by para garantir que veja suas próprias
       requests = await sql`
         SELECT 
           id,
@@ -48,7 +49,8 @@ async function handleList(event, sql, user) {
           created_at,
           updated_at
         FROM material_requests
-        WHERE deleted_at IS NULL AND requester_name = ${userName}
+        WHERE deleted_at IS NULL 
+        AND (requester_name = ${userName} OR created_by = ${user.userId})
         ORDER BY created_at DESC
         LIMIT 100
       `;

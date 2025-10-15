@@ -24,7 +24,7 @@ function generateToken(user) {
       userId: user.id,
       email: user.email,
       role: user.role,
-      name: user.name
+      name: user.name || user.nome  // Fallback para nome
     },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
