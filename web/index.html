@@ -273,8 +273,8 @@
             const user = getCurrentUser();
             if (!user) return;
             
-            // Esconder importação Excel para separador e solicitante (só admin pode importar)
-            if (user.role === 'separador' || user.role === 'solicitante') {
+            // Esconder importação Excel APENAS para separador (admin e solicitante podem importar)
+            if (user.role === 'separador') {
                 const importLabel = document.querySelector('label.btn-info');
                 if (importLabel) importLabel.style.display = 'none';
                 

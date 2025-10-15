@@ -301,9 +301,8 @@ async function handlePickingList(event, sql, user) {
   const requests = await sql`
     SELECT 
       mr.*,
-      u.nome as solicitante_nome
+      mr.requester_name as solicitante_nome
     FROM material_requests mr
-    JOIN users u ON mr.solicitante_id = u.id
     WHERE mr.id = ANY(${requestIds})
     AND mr.deleted_at IS NULL
   `;
@@ -314,7 +313,7 @@ async function handlePickingList(event, sql, user) {
 
   // Filtrar por permissão (solicitantes só veem suas próprias)
   const filtered = user.role === 'solicitante'
-    ? requests.filter(r => r.solicitante_id === user.userId)
+    ? requests.filter(r => r.created_by === user.userId)
     : requests;
 
   if (filtered.length === 0) {
@@ -366,12 +365,10 @@ async function handleSingleRequest(event, sql, user) {
   const [request] = await sql`
     SELECT 
       mr.*,
-      u_solicitante.nome as solicitante_nome,
-      u_solicitante.email as solicitante_email,
+      mr.requester_name as solicitante_nome,
       u_creator.nome as criado_por_nome
     FROM material_requests mr
-    JOIN users u_solicitante ON mr.solicitante_id = u_solicitante.id
-    JOIN users u_creator ON mr.created_by = u_creator.id
+    LEFT JOIN users u_creator ON mr.created_by = u_creator.id
     WHERE mr.id = ${requestId} AND mr.deleted_at IS NULL
   `;
 
@@ -380,7 +377,7 @@ async function handleSingleRequest(event, sql, user) {
   }
 
   // Verificar permissão
-  if (user.role === 'solicitante' && request.solicitante_id !== user.userId) {
+  if (user.role === 'solicitante' && request.created_by !== user.userId) {
     throw notFoundError('Solicitação');
   }
 

@@ -61,8 +61,8 @@ async function setupUsers(event, sql) {
       VALUES (
         'solicitante@antilhas.com',
         ${passwordHash},
-        'Solicitante Teste',
-        'Solicitante Teste',
+        'Solicitante',
+        'Solicitante',
         'solicitante',
         false
       )
