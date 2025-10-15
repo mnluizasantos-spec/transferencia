@@ -198,10 +198,6 @@ body {
 }
 
 /* Espaçamento entre botões de ação na tabela */
-td {
-    white-space: nowrap;
-}
-
 td .btn-small {
     margin-left: 8px;
     display: inline-block;
@@ -210,6 +206,19 @@ td .btn-small {
 td .btn-small:first-child {
     margin-left: 0;
 }
+
+/* Larguras específicas das colunas da tabela */
+table th:nth-child(1), table td:nth-child(1) { width: 60px; } /* ID */
+table th:nth-child(2), table td:nth-child(2) { width: 100px; } /* Urgência */
+table th:nth-child(3), table td:nth-child(3) { width: 120px; } /* Prazo */
+table th:nth-child(4), table td:nth-child(4) { width: 120px; } /* Código */
+table th:nth-child(5), table td:nth-child(5) { width: auto; } /* Descrição */
+table th:nth-child(6), table td:nth-child(6) { width: 120px; } /* Solicitante */
+table th:nth-child(7), table td:nth-child(7) { width: 100px; } /* QTD/UNID */
+table th:nth-child(8), table td:nth-child(8) { width: 120px; } /* Status */
+table th:nth-child(9), table td:nth-child(9) { width: 150px; } /* Observação */
+table th:nth-child(10), table td:nth-child(10) { width: 150px; } /* Atualizado */
+table th:nth-child(11), table td:nth-child(11) { width: 150px; white-space: nowrap; } /* Ações */
 
 /* ============================================================================
    NAVIGATION

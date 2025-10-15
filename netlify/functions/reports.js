@@ -46,6 +46,7 @@ exports.handler = withErrorHandling(async (event) => {
                 WHERE created_at BETWEEN ${startDate} AND ${endDate}
                 AND created_by = ${user.userId}
                 AND status != 'Cancelado'
+                AND deleted_at IS NULL
                 GROUP BY material_description
                 ORDER BY total DESC
                 LIMIT 10
@@ -59,6 +60,7 @@ exports.handler = withErrorHandling(async (event) => {
                 FROM material_requests
                 WHERE created_at BETWEEN ${startDate} AND ${endDate}
                 AND status != 'Cancelado'
+                AND deleted_at IS NULL
                 GROUP BY material_description
                 ORDER BY total DESC
                 LIMIT 10
@@ -77,6 +79,7 @@ exports.handler = withErrorHandling(async (event) => {
                 AND created_at BETWEEN ${startDate} AND ${endDate}
                 AND created_by = ${user.userId}
                 AND status != 'Cancelado'
+                AND deleted_at IS NULL
             `;
         } else {
             avgTime = await sql`
@@ -87,6 +90,7 @@ exports.handler = withErrorHandling(async (event) => {
                 WHERE status = 'Concluído'
                 AND created_at BETWEEN ${startDate} AND ${endDate}
                 AND status != 'Cancelado'
+                AND deleted_at IS NULL
             `;
         }
 
@@ -101,6 +105,7 @@ exports.handler = withErrorHandling(async (event) => {
                 WHERE created_at BETWEEN ${startDate} AND ${endDate}
                 AND created_by = ${user.userId}
                 AND status != 'Cancelado'
+                AND deleted_at IS NULL
                 GROUP BY DATE(created_at)
                 ORDER BY date
             `;
@@ -112,6 +117,7 @@ exports.handler = withErrorHandling(async (event) => {
                 FROM material_requests
                 WHERE created_at BETWEEN ${startDate} AND ${endDate}
                 AND status != 'Cancelado'
+                AND deleted_at IS NULL
                 GROUP BY DATE(created_at)
                 ORDER BY date
             `;
@@ -128,6 +134,7 @@ exports.handler = withErrorHandling(async (event) => {
                 WHERE created_at BETWEEN ${startDate} AND ${endDate}
                 AND created_by = ${user.userId}
                 AND status != 'Cancelado'
+                AND deleted_at IS NULL
                 GROUP BY status
                 ORDER BY count DESC
             `;
@@ -139,6 +146,7 @@ exports.handler = withErrorHandling(async (event) => {
                 FROM material_requests
                 WHERE created_at BETWEEN ${startDate} AND ${endDate}
                 AND status != 'Cancelado'
+                AND deleted_at IS NULL
                 GROUP BY status
                 ORDER BY count DESC
             `;
