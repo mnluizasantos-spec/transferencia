@@ -46,7 +46,7 @@
                 </div>
             </div>
 
-            <div class="stat-card danger">
+            <div class="stat-card danger clickable" onclick="filterByOverdue()">
                 <div class="stat-header">
                     <div>
                         <div class="stat-label">Em Atraso</div>
@@ -56,7 +56,7 @@
                 </div>
             </div>
 
-            <div class="stat-card warning">
+            <div class="stat-card warning clickable" onclick="filterByDueToday()">
                 <div class="stat-header">
                     <div>
                         <div class="stat-label">Vencem Hoje</div>
@@ -66,7 +66,7 @@
                 </div>
             </div>
 
-            <div class="stat-card success">
+            <div class="stat-card success clickable" onclick="filterByCompleted()">
                 <div class="stat-header">
                     <div>
                         <div class="stat-label">Concluídos</div>
@@ -377,9 +377,14 @@
                     }
                 }
             } else if (userRole === 'solicitante') {
-                // Solicitante: só pode editar suas próprias solicitações pendentes
-                if (isOwner && !isCompleted && req.status === 'Pendente') {
-                    buttons += `<button class="btn btn-primary btn-small" onclick="editRequest(${req.id})" title="Editar">✏️</button>`;
+                // Solicitante: só pode editar suas próprias solicitações pendentes e cancelar
+                if (isOwner && !isCompleted) {
+                    if (req.status === 'Pendente') {
+                        buttons += `<button class="btn btn-primary btn-small" onclick="editRequest(${req.id})" title="Editar">✏️</button>`;
+                    }
+                    if (['Pendente', 'Em Separação'].includes(req.status)) {
+                        buttons += `<button class="btn btn-danger btn-small" onclick="cancelRequest(${req.id})" title="Cancelar">❌</button>`;
+                    }
                 }
             }
             
@@ -594,7 +599,22 @@
                     return;
                 }
 
-                timeline.innerHTML = history.map(h => `
+                // Filtrar histórico de campos removidos
+                const filteredHistory = history.filter(h => {
+                    // Remover production_start_date (campo removido)
+                    if (h.campo_alterado === 'production_start_date') {
+                        return false;
+                    }
+                    
+                    // Remover deadline → null (prazo removido acidentalmente)
+                    if (h.campo_alterado === 'deadline' && h.valor_novo === 'null') {
+                        return false;
+                    }
+                    
+                    return true;
+                });
+
+                timeline.innerHTML = filteredHistory.map(h => `
                     <div class="timeline-item">
                         <div class="timeline-time">${formatDateTime(h.timestamp)}</div>
                         <div class="timeline-content">
@@ -637,6 +657,41 @@
 
         window.closeHistoryModal = function() {
             document.getElementById('history-modal').classList.remove('active');
+        };
+
+        // Funções de filtro por cards
+        window.filterByOverdue = function() {
+            document.getElementById('filter-status').value = '';
+            document.getElementById('filter-urgencia').value = '';
+            // TODO: Implementar filtro customizado para atrasados
+            loadRequests();
+        };
+
+        window.filterByDueToday = function() {
+            document.getElementById('filter-status').value = '';
+            document.getElementById('filter-urgencia').value = '';
+            // TODO: Implementar filtro customizado para vencem hoje
+            loadRequests();
+        };
+
+        window.filterByCompleted = function() {
+            document.getElementById('filter-status').value = 'Concluído';
+            document.getElementById('filter-urgencia').value = '';
+            loadRequests();
+        };
+
+        // Função cancelar para solicitante
+        window.cancelRequest = async function(id) {
+            if (!confirm('Tem certeza que deseja cancelar esta solicitação?')) return;
+            
+            try {
+                await updateRequest(id, { status: 'Cancelado' });
+                await loadRequests();
+                await loadDashboard();
+                showNotification('Solicitação cancelada com sucesso', 'success');
+            } catch (error) {
+                showNotification('Erro ao cancelar: ' + error.message, 'error');
+            }
         };
 
         window.printSelected = async function() {

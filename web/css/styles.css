@@ -44,7 +44,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #4682B4;
 }
 
 .login-container {
@@ -202,7 +202,7 @@ body {
    ============================================================================ */
 
 .app-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #4682B4;
     color: var(--white);
     padding: 0 30px;
     box-shadow: var(--shadow);
@@ -322,6 +322,15 @@ body {
 .stat-card.danger { border-color: var(--danger); }
 .stat-card.warning { border-color: var(--warning); }
 .stat-card.success { border-color: var(--success); }
+
+.stat-card.clickable {
+    cursor: pointer;
+}
+
+.stat-card.clickable:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-hover);
+}
 
 .stat-header {
     display: flex;

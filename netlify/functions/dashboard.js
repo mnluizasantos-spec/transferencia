@@ -24,7 +24,9 @@ async function handleStats(event, sql, user) {
         SELECT 
           COUNT(*) as total,
           COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
-          COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos
+          COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
+          COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado') as atrasados,
+          COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado') as vencem_hoje
         FROM material_requests
         WHERE deleted_at IS NULL AND requester_name = ${userName}
       `;
@@ -33,7 +35,9 @@ async function handleStats(event, sql, user) {
         SELECT 
           COUNT(*) as total,
           COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
-          COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos
+          COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
+          COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado') as atrasados,
+          COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado') as vencem_hoje
         FROM material_requests
         WHERE deleted_at IS NULL
       `;
@@ -48,9 +52,8 @@ async function handleStats(event, sql, user) {
         total: parseInt(stats.total) || 0,
         pendentes: parseInt(stats.pendentes) || 0,
         concluidos: parseInt(stats.concluidos) || 0,
-        // Valores padrão para outros campos
-        atrasados: 0,
-        vencem_hoje: 0,
+        atrasados: parseInt(stats.atrasados) || 0,
+        vencem_hoje: parseInt(stats.vencem_hoje) || 0,
         concluidos_hoje: 0,
         em_separacao: 0,
         urgentes: 0
