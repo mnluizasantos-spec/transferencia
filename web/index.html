@@ -486,7 +486,6 @@
             try {
                 currentRequests = await getRequests(filters);
                 renderRequests();
-                loadDashboard(); // Atualizar estatísticas
             } catch (error) {
                 console.error('Erro ao carregar solicitações:', error);
                 document.getElementById('requests-tbody').innerHTML = `
@@ -552,6 +551,7 @@
                         Nenhuma solicitação encontrada
                     </td></tr>
                 `;
+                updateStatsFromFiltered();
                 return;
             }
 
@@ -584,6 +584,8 @@
             document.querySelectorAll('.row-checkbox').forEach(cb => {
                 cb.addEventListener('change', handleCheckboxChange);
             });
+
+            updateStatsFromFiltered();
         }
 
         function formatPrazo(deadline, status) {
@@ -667,6 +669,37 @@
             document.getElementById('filter-prazo-fim').value = '';
             loadRequests();
         }
+
+        function updateStatsFromFiltered() {
+            const total = currentRequests.length;
+            
+            // Contar concluídos
+            const concluidos = currentRequests.filter(r => r.status === 'Concluído').length;
+            
+            // Contar em atraso (deadline < hoje e status não é Concluído/Cancelado)
+            const hoje = new Date().toISOString().split('T')[0];
+            const atrasados = currentRequests.filter(r => {
+                if (!r.deadline || r.status === 'Concluído' || r.status === 'Cancelado') return false;
+                const deadlineDate = r.deadline.split('T')[0];
+                return deadlineDate < hoje;
+            }).length;
+            
+            // Contar vencem hoje
+            const vencemHoje = currentRequests.filter(r => {
+                if (!r.deadline || r.status === 'Concluído' || r.status === 'Cancelado') return false;
+                const deadlineDate = r.deadline.split('T')[0];
+                return deadlineDate === hoje;
+            }).length;
+            
+            // Atualizar DOM
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-atrasados').textContent = atrasados;
+            document.getElementById('stat-hoje').textContent = vencemHoje;
+            document.getElementById('stat-concluidos').textContent = concluidos;
+        }
+
+        window.limparFiltros = limparFiltros;
+        window.updateStatsFromFiltered = updateStatsFromFiltered;
 
         function handleSelectAll(e) {
             const checked = e.target.checked;
