@@ -123,6 +123,7 @@
                     <tr>
                         <th><input type="checkbox" id="select-all"></th>
                         <th>ID</th>
+                        <th>Data Solicitação</th>
                         <th>Urgência</th>
                         <th>Prazo</th>
                         <th>Código</th>
@@ -137,7 +138,7 @@
                 </thead>
                 <tbody id="requests-tbody">
                     <tr>
-                        <td colspan="12" style="text-align: center; padding: 40px;">
+                        <td colspan="13" style="text-align: center; padding: 40px;">
                             Carregando...
                         </td>
                     </tr>
@@ -522,7 +523,7 @@
             
             if (currentRequests.length === 0) {
                 tbody.innerHTML = `
-                    <tr><td colspan="12" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    <tr><td colspan="13" style="text-align: center; padding: 40px; color: var(--text-secondary);">
                         Nenhuma solicitação encontrada
                     </td></tr>
                 `;
@@ -533,6 +534,7 @@
                 <tr>
                     <td><input type="checkbox" class="row-checkbox" data-id="${req.id}"></td>
                     <td><strong>#${req.id}</strong></td>
+                    <td>${formatDate(req.created_at)}</td>
                     <td>
                         <span class="badge ${req.urgencia.toLowerCase()}">${req.urgencia}</span>
                     </td>
@@ -616,6 +618,18 @@
         function formatDateTime(dateString) {
             if (!dateString) return '-';
             return new Date(dateString).toLocaleString('pt-BR');
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
         }
 
         function handleSelectAll(e) {
