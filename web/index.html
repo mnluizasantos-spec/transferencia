@@ -278,7 +278,7 @@
 
                     <div class="form-group">
                         <label for="quantidade">Quantidade *</label>
-                        <input type="number" id="quantidade" required min="1" placeholder="Ex: 100">
+                        <input type="number" id="quantidade" required min="0.001" step="0.001" placeholder="Ex: 100 ou 5438,975">
                     </div>
 
                     <div class="form-group">
@@ -567,7 +567,7 @@
                     <td><strong>${req.material_code || req.material}</strong></td>
                     <td>${req.material_description || '-'}</td>
                     <td>${req.solicitante_nome || req.requester_name}</td>
-                    <td>${req.quantidade} ${req.unidade || ''}</td>
+                    <td>${Number(req.quantidade).toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 3})} ${req.unidade || ''}</td>
                     <td>
                         <span class="badge ${req.status.toLowerCase().replace(' ', '-')}">${req.status}</span>
                     </td>

@@ -298,18 +298,32 @@ function validateQuantidade(quantidade, rowNumber) {
     return { valid: false, error: `Linha ${rowNumber}: Quantidade é obrigatória` };
   }
   
-  // Converter para string e remover separadores
-  const quantidadeStr = String(quantidade).replace(/[.,\s]/g, '');
+  // Converter para string
+  let quantidadeStr = String(quantidade).trim();
   
-  // Verificar se é numérico
-  if (!/^\d+$/.test(quantidadeStr)) {
-    return { valid: false, error: `Linha ${rowNumber}: Quantidade deve ser um número` };
+  // Remover espaços
+  quantidadeStr = quantidadeStr.replace(/\s/g, '');
+  
+  // Detectar formato brasileiro: vírgula como decimal
+  // Exemplos: 5438,975 | 1.234,56 | 1234,5
+  if (quantidadeStr.includes(',')) {
+    // Remover pontos (separadores de milhares)
+    quantidadeStr = quantidadeStr.replace(/\./g, '');
+    // Substituir vírgula por ponto (decimal)
+    quantidadeStr = quantidadeStr.replace(',', '.');
+  }
+  // Se não tem vírgula mas tem ponto, assumir formato internacional
+  // Exemplos: 5438.975 | 1234.5
+  
+  // Verificar se é numérico (aceita decimais)
+  if (!/^\d+(\.\d+)?$/.test(quantidadeStr)) {
+    return { valid: false, error: `Linha ${rowNumber}: Quantidade deve ser um número válido` };
   }
   
-  const quantidadeNum = parseInt(quantidadeStr, 10);
+  const quantidadeNum = parseFloat(quantidadeStr);
   
   // Verificar se é positivo
-  if (quantidadeNum <= 0) {
+  if (quantidadeNum <= 0 || isNaN(quantidadeNum)) {
     return { valid: false, error: `Linha ${rowNumber}: Quantidade deve ser maior que zero` };
   }
   
