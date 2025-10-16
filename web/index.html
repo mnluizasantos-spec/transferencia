@@ -1241,8 +1241,8 @@
             document.getElementById('report-avg-time').textContent = 
                 avgHours > 0 ? `${Math.round(avgHours)}h` : '-';
             
-            // Total no período
-            const total = data.daily?.reduce((sum, day) => sum + day.count, 0) || 0;
+            // Total no período (número de solicitações)
+            const total = data.summary?.totalRequests || 0;
             document.getElementById('report-total-period').textContent = total;
             
             // Taxa de conclusão

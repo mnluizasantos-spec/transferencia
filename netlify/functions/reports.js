@@ -152,8 +152,27 @@ exports.handler = withErrorHandling(async (event) => {
             `;
         }
 
-        // 5. Estatísticas adicionais
-        const totalRequests = daily.reduce((sum, day) => sum + day.count, 0);
+        // 5. Estatísticas adicionais - contar número de solicitações (não quantidades)
+        let totalRequestsQuery;
+        if (user.role === 'solicitante') {
+            totalRequestsQuery = await sql`
+                SELECT COUNT(*) as total
+                FROM material_requests
+                WHERE created_at BETWEEN ${startDate} AND ${endDate}
+                AND created_by = ${user.userId}
+                AND status != 'Cancelado'
+                AND deleted_at IS NULL
+            `;
+        } else {
+            totalRequestsQuery = await sql`
+                SELECT COUNT(*) as total
+                FROM material_requests
+                WHERE created_at BETWEEN ${startDate} AND ${endDate}
+                AND status != 'Cancelado'
+                AND deleted_at IS NULL
+            `;
+        }
+        const totalRequests = totalRequestsQuery[0]?.total || 0;
         const completedRequests = byStatus.find(s => s.status === 'Concluído')?.count || 0;
         const completionRate = totalRequests > 0 ? (completedRequests / totalRequests) * 100 : 0;
 
