@@ -327,7 +327,7 @@ function validateQuantidade(quantidade, rowNumber) {
     return { valid: false, error: `Linha ${rowNumber}: Quantidade deve ser maior que zero` };
   }
   
-  return { valid: true, value: quantidadeNum };
+  return { valid: true, value: Math.ceil(quantidadeNum) };
 }
 
 /**
