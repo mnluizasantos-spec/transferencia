@@ -15,6 +15,10 @@ async function setupUsers(event, sql) {
     const defaultPassword = 'admin123';
     const passwordHash = await bcrypt.hash(defaultPassword, 10);
     
+    // Senha específica para separador
+    const separadorPassword = 'sep@rador@ntilhas';
+    const separadorPasswordHash = await bcrypt.hash(separadorPassword, 10);
+    
     // Senha específica para solicitante
     const solicitantePassword = 'solicit@m@t';
     const solicitantePasswordHash = await bcrypt.hash(solicitantePassword, 10);
@@ -45,7 +49,7 @@ async function setupUsers(event, sql) {
       INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
       VALUES (
         'separador@antilhas.com',
-        ${passwordHash},
+        ${separadorPasswordHash},
         'Separador de Material',
         'Separador de Material',
         'separador',
