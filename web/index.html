@@ -101,6 +101,19 @@
                     <option value="Urgente">Urgente</option>
                     <option value="Normal">Normal</option>
                 </select>
+                <div class="date-filter-group">
+                    <label for="filter-data-solicitacao-inicio">Data Solicitação:</label>
+                    <input type="date" id="filter-data-solicitacao-inicio" placeholder="De">
+                    <span>até</span>
+                    <input type="date" id="filter-data-solicitacao-fim" placeholder="Até">
+                </div>
+                <div class="date-filter-group">
+                    <label for="filter-prazo-inicio">Prazo:</label>
+                    <input type="date" id="filter-prazo-inicio" placeholder="De">
+                    <span>até</span>
+                    <input type="date" id="filter-prazo-fim" placeholder="Até">
+                </div>
+                <button class="btn btn-secondary btn-small" onclick="limparFiltros()">🔄 Limpar Filtros</button>
                 <button class="btn btn-secondary btn-small" onclick="downloadTemplate()">📥 Template Excel</button>
                 <label class="btn btn-info btn-small" style="margin: 0 10px;">
                     📤 Importar Excel
@@ -417,6 +430,10 @@
             document.getElementById('search-input').addEventListener('input', debounce(loadRequests, 300));
             document.getElementById('filter-status').addEventListener('change', loadRequests);
             document.getElementById('filter-urgencia').addEventListener('change', loadRequests);
+            document.getElementById('filter-data-solicitacao-inicio').addEventListener('change', loadRequests);
+            document.getElementById('filter-data-solicitacao-fim').addEventListener('change', loadRequests);
+            document.getElementById('filter-prazo-inicio').addEventListener('change', loadRequests);
+            document.getElementById('filter-prazo-fim').addEventListener('change', loadRequests);
             document.getElementById('select-all').addEventListener('change', handleSelectAll);
 
             // Fechar modais ao clicar fora
@@ -452,11 +469,19 @@
             const search = document.getElementById('search-input').value;
             const status = document.getElementById('filter-status').value;
             const urgencia = document.getElementById('filter-urgencia').value;
+            const dataSolicitacaoInicio = document.getElementById('filter-data-solicitacao-inicio').value;
+            const dataSolicitacaoFim = document.getElementById('filter-data-solicitacao-fim').value;
+            const prazoInicio = document.getElementById('filter-prazo-inicio').value;
+            const prazoFim = document.getElementById('filter-prazo-fim').value;
 
             const filters = {};
             if (search) filters.search = search;
             if (status) filters.status = status;
             if (urgencia) filters.urgencia = urgencia;
+            if (dataSolicitacaoInicio) filters.created_at_start = dataSolicitacaoInicio;
+            if (dataSolicitacaoFim) filters.created_at_end = dataSolicitacaoFim;
+            if (prazoInicio) filters.deadline_start = prazoInicio;
+            if (prazoFim) filters.deadline_end = prazoFim;
 
             try {
                 currentRequests = await getRequests(filters);
@@ -630,6 +655,17 @@
                 hour: '2-digit',
                 minute: '2-digit'
             });
+        }
+
+        function limparFiltros() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('filter-status').value = '';
+            document.getElementById('filter-urgencia').value = '';
+            document.getElementById('filter-data-solicitacao-inicio').value = '';
+            document.getElementById('filter-data-solicitacao-fim').value = '';
+            document.getElementById('filter-prazo-inicio').value = '';
+            document.getElementById('filter-prazo-fim').value = '';
+            loadRequests();
         }
 
         function handleSelectAll(e) {

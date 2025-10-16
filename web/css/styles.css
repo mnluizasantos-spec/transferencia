@@ -233,6 +233,36 @@ table th:nth-child(11), table td:nth-child(11) { width: 150px; } /* Observação
 table th:nth-child(12), table td:nth-child(12) { width: 150px; } /* Atualizado */
 table th:nth-child(13), table td:nth-child(13) { width: 180px; } /* Ações */
 
+/* Estilos para filtros de data */
+.date-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.date-filter-group label {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.date-filter-group input[type="date"] {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    max-width: 140px;
+}
+
+.date-filter-group span {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
 /* Estilos específicos para tabela de relatórios */
 #top-materials-table th {
     white-space: nowrap;

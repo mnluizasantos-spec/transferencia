@@ -34,8 +34,12 @@ async function handleList(event, sql, user) {
     const statusFilter = params.status;
     const urgenciaFilter = params.urgencia;
     const searchFilter = params.search;
+    const created_at_start = params.created_at_start;
+    const created_at_end = params.created_at_end;
+    const deadline_start = params.deadline_start;
+    const deadline_end = params.deadline_end;
     
-    console.log('Filtros recebidos:', { statusFilter, urgenciaFilter, searchFilter });
+    console.log('Filtros recebidos:', { statusFilter, urgenciaFilter, searchFilter, created_at_start, created_at_end, deadline_start, deadline_end });
     
     // Buscar todas as solicitações
     let requests = await sql`
@@ -75,6 +79,28 @@ async function handleList(event, sql, user) {
         (r.material_code && r.material_code.toLowerCase().includes(search)) ||
         (r.requester_name && r.requester_name.toLowerCase().includes(search))
       );
+    }
+    
+    // Aplicar filtros de data de solicitação
+    if (created_at_start) {
+      const startDate = new Date(created_at_start);
+      requests = requests.filter(r => new Date(r.created_at) >= startDate);
+    }
+    
+    if (created_at_end) {
+      const endDate = new Date(created_at_end + 'T23:59:59');
+      requests = requests.filter(r => new Date(r.created_at) <= endDate);
+    }
+    
+    // Aplicar filtros de prazo
+    if (deadline_start) {
+      const startDate = new Date(deadline_start);
+      requests = requests.filter(r => r.deadline && new Date(r.deadline) >= startDate);
+    }
+    
+    if (deadline_end) {
+      const endDate = new Date(deadline_end + 'T23:59:59');
+      requests = requests.filter(r => r.deadline && new Date(r.deadline) <= endDate);
     }
     
     console.log('Requests List - Resultado', { count: requests.length });
