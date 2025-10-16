@@ -15,6 +15,10 @@ async function setupUsers(event, sql) {
     const defaultPassword = 'admin123';
     const passwordHash = await bcrypt.hash(defaultPassword, 10);
     
+    // Senha específica para solicitante
+    const solicitantePassword = 'solicit@m@t';
+    const solicitantePasswordHash = await bcrypt.hash(solicitantePassword, 10);
+    
     console.log('📝 Criando/atualizando usuários...');
     
     // Admin padrão
@@ -60,7 +64,7 @@ async function setupUsers(event, sql) {
       INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
       VALUES (
         'solicitante@antilhas.com',
-        ${passwordHash},
+        ${solicitantePasswordHash},
         'Solicitante',
         'Solicitante',
         'solicitante',
