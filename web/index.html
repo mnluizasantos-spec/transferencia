@@ -487,6 +487,9 @@
                     buttons += `<button class="btn btn-primary btn-small" onclick="editRequest(${req.id})" title="Editar">✏️</button>`;
                     buttons += `<button class="btn btn-success btn-small" onclick="completeRequest(${req.id})" title="Concluir">✓</button>`;
                     buttons += `<button class="btn btn-warning btn-small" onclick="updateStatus(${req.id}, 'Em Separação')" title="Marcar como Em Separação">📦</button>`;
+                } else {
+                    // Botão para reverter de Concluído para Em Separação
+                    buttons += `<button class="btn btn-warning btn-small" onclick="revertToSeparation(${req.id})" title="Reverter para Em Separação">↩️</button>`;
                 }
                 // Botão de exclusão (sempre visível para admin)
                 buttons += `<button class="btn btn-danger btn-small" onclick="deleteRequest(${req.id})" title="Excluir">🗑️</button>`;
@@ -498,6 +501,9 @@
                     } else if (req.status === 'Em Separação') {
                         buttons += `<button class="btn btn-success btn-small" onclick="completeRequest(${req.id})" title="Concluir">✓</button>`;
                     }
+                } else {
+                    // Botão para reverter de Concluído para Em Separação
+                    buttons += `<button class="btn btn-warning btn-small" onclick="revertToSeparation(${req.id})" title="Reverter para Em Separação">↩️</button>`;
                 }
             } else if (userRole === 'solicitante') {
                 // Solicitante: só pode cancelar suas próprias solicitações
@@ -733,6 +739,16 @@
                 await loadRequests();
             } catch (error) {
                 alert(`Erro: ${error.message}`);
+            }
+        };
+
+        window.revertToSeparation = async function(id) {
+            try {
+                await updateRequest(id, { status: 'Em Separação' });
+                alert('Solicitação revertida para Em Separação!');
+                await loadRequests();
+            } catch (error) {
+                alert(`Erro ao reverter: ${error.message}`);
             }
         };
 
