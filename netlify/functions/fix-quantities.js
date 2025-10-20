@@ -44,24 +44,8 @@ exports.handler = withErrorHandling(async (event) => {
     LIMIT 1
   `;
   const file = files[0];
-  if (!file) {
-    return { statusCode: 404, headers, body: JSON.stringify({ error: 'Arquivo original não encontrado para este lote' }) };
-  }
 
-  // Ler Excel
-  const workbook = XLSX.read(Buffer.from(file.file_bytes), { type: 'buffer' });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(sheet);
-
-  // Quantidades corrigidas por ordem
-  const corrected = rows.map((r, idx) => ({
-    index: idx,
-    material: r.Material ?? r.material,
-    descricao: r['Descrição'] ?? r['Descricao'] ?? r['descrição'] ?? r['descricao'],
-    quantidadeCorrigida: parseQuantity(r.Quantidade ?? r.quantidade)
-  }));
-
-  // Buscar requests do lote via request_history (ordem de criação) 
+  // Buscar requests do lote via request_history (ordem de criação)
   const requests = await sql`
     SELECT r.id, r.quantidade, r.material_code, r.material_description, r.created_at
     FROM material_requests r
@@ -76,25 +60,68 @@ exports.handler = withErrorHandling(async (event) => {
     return { statusCode: 404, headers, body: JSON.stringify({ error: 'Nenhuma solicitação encontrada para este lote' }) };
   }
 
-  const countMismatch = corrected.length !== requests.length;
-  const limit = Math.min(corrected.length, requests.length);
-  const preview = [];
-  for (let i = 0; i < limit; i++) {
-    const req = requests[i];
-    const cor = corrected[i];
-    if (Number(req.quantidade) !== Number(cor.quantidadeCorrigida)) {
-      preview.push({
-        requestId: req.id,
-        from: Number(req.quantidade),
-        to: Number(cor.quantidadeCorrigida),
-        material_code: req.material_code,
-        material_description: req.material_description
-      });
+  let preview = [];
+  let meta = {};
+
+  if (file) {
+    // Caminho preciso usando arquivo original
+    const workbook = XLSX.read(Buffer.from(file.file_bytes), { type: 'buffer' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet);
+
+    // Quantidades corrigidas por ordem
+    const corrected = rows.map((r, idx) => ({
+      index: idx,
+      material: r.Material ?? r.material,
+      descricao: r['Descrição'] ?? r['Descricao'] ?? r['descrição'] ?? r['descricao'],
+      quantidadeCorrigida: parseQuantity(r.Quantidade ?? r.quantidade)
+    }));
+
+    const countMismatch = corrected.length !== requests.length;
+    const limit = Math.min(corrected.length, requests.length);
+    for (let i = 0; i < limit; i++) {
+      const req = requests[i];
+      const cor = corrected[i];
+      if (Number(req.quantidade) !== Number(cor.quantidadeCorrigida)) {
+        preview.push({
+          requestId: req.id,
+          from: Number(req.quantidade),
+          to: Number(cor.quantidadeCorrigida),
+          material_code: req.material_code,
+          material_description: req.material_description
+        });
+      }
     }
+    meta = { mode: 'from_file', totalRows: rows.length, totalRequests: requests.length, countMismatch };
+  } else {
+    // Caminho heurístico sem arquivo original
+    // Regra por item: reduzir fator até o valor ficar razoável
+    function heuristicFix(q) {
+      const n = Number(q);
+      if (!Number.isFinite(n) || n <= 0) return null;
+      if (n >= 1_000_000) return Math.ceil(n / 1000);
+      if (n >= 100_000) return Math.ceil(n / 100);
+      if (n >= 10_000) return Math.ceil(n / 10);
+      return n; // já parece razoável
+    }
+    for (const req of requests) {
+      const fixed = heuristicFix(Number(req.quantidade));
+      if (!fixed) continue;
+      if (fixed !== Number(req.quantidade)) {
+        preview.push({
+          requestId: req.id,
+          from: Number(req.quantidade),
+          to: fixed,
+          material_code: req.material_code,
+          material_description: req.material_description
+        });
+      }
+    }
+    meta = { mode: 'heuristic', totalRequests: requests.length };
   }
 
   if (dryRun) {
-    return { statusCode: 200, headers, body: JSON.stringify({ totalRows: rows.length, totalRequests: requests.length, countMismatch, changes: preview }) };
+    return { statusCode: 200, headers, body: JSON.stringify({ ...meta, changes: preview }) };
   }
 
   // Aplicar alterações
@@ -108,7 +135,7 @@ exports.handler = withErrorHandling(async (event) => {
     `;
   }
 
-  return { statusCode: 200, headers, body: JSON.stringify({ updated: preview.length, totalConsidered: limit, countMismatch }) };
+  return { statusCode: 200, headers, body: JSON.stringify({ updated: preview.length, ...meta }) };
 });
 
 
