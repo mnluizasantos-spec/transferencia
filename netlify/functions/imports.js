@@ -2,6 +2,23 @@ const { getDB } = require('./utils/db');
 const { withErrorHandling, validationError } = require('./utils/errorHandler');
 const { verifyToken } = require('./utils/middleware');
 
+// Garante que a tabela exista (idempotente)
+async function ensureImportFilesTable(sql) {
+  await sql`
+    CREATE TABLE IF NOT EXISTS import_files (
+      id BIGSERIAL PRIMARY KEY,
+      batch_id BIGINT NOT NULL REFERENCES import_batches(id) ON DELETE CASCADE,
+      original_filename TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      size_bytes INTEGER NOT NULL,
+      file_bytes BYTEA NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      user_id BIGINT REFERENCES users(id)
+    )
+  `;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_import_files_batch ON import_files(batch_id)`;
+}
+
 exports.handler = withErrorHandling(async (event) => {
   const sql = getDB();
   const user = await verifyToken(event, sql);
@@ -21,6 +38,9 @@ exports.handler = withErrorHandling(async (event) => {
   }
 
   const params = event.queryStringParameters || {};
+
+  // Garantir tabela antes de usar em LEFT JOIN e downloads
+  await ensureImportFilesTable(sql);
 
   // Listar lotes com info de arquivo original
   if (params.list) {
