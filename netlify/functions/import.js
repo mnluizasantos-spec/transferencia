@@ -17,72 +17,95 @@ const { logInfo, logAudit } = require('./utils/logger');
  * @returns {number} Quantidade convertida e arredondada para cima
  */
 function parseQuantity(value) {
-  // Converter para string e limpar
-  let str = String(value).trim();
+  // Converter para string e limpar espaços
+  let str = String(value).trim().replace(/\s/g, '');
   
-  // Remover espaços
-  str = str.replace(/\s/g, '');
-  
-  // Log do valor original
   console.log(`🔍 Parsing quantidade: "${value}" → "${str}"`);
   
-  // Se for apenas número sem separadores, retornar direto
+  // Caso 1: Número inteiro puro (sem pontos ou vírgulas)
   if (/^\d+$/.test(str)) {
     const num = parseInt(str, 10);
     console.log(`✅ Número inteiro: ${num}`);
     return num;
   }
   
-  // Detectar formato
+  // Caso 2: Tem formatação (ponto ou vírgula)
   const hasComma = str.includes(',');
   const hasDot = str.includes('.');
   
-  if (hasComma && hasDot) {
-    // Tem ambos - determinar qual é decimal
-    const lastComma = str.lastIndexOf(',');
-    const lastDot = str.lastIndexOf('.');
-    
-    if (lastComma > lastDot) {
-      // BR: 1.234,56 - vírgula é decimal, ponto é separador de milhar
-      str = str.replace(/\./g, '').replace(',', '.');
-      console.log(`🇧🇷 Formato BR detectado: ${str}`);
-    } else {
-      // US: 1,234.56 - vírgula é separador de milhar, ponto é decimal
-      str = str.replace(/,/g, '');
-      console.log(`🇺🇸 Formato US detectado: ${str}`);
-    }
-  } else if (hasComma) {
-    // Só vírgula - assumir decimal brasileiro
+  // Caso 2a: Apenas vírgula = decimal brasileiro
+  if (hasComma && !hasDot) {
+    // 40,881 → 40.881
     str = str.replace(',', '.');
-    console.log(`🇧🇷 Apenas vírgula (decimal BR): ${str}`);
-  } else if (hasDot) {
-    // Só ponto - pode ser decimal ou separador de milhar
-    // Se tem mais de 2 dígitos após o ponto, provavelmente é separador de milhar
+    const num = Number(str);
+    const result = Math.ceil(num);
+    console.log(`✅ Decimal BR (vírgula): ${value} → ${num} → ${result}`);
+    return result;
+  }
+  
+  // Caso 2b: Apenas ponto
+  if (hasDot && !hasComma) {
     const parts = str.split('.');
-    if (parts.length === 2 && parts[1].length > 2) {
-      // Separador de milhar: 1.234 → 1234
+    
+    // Se tem 3 dígitos após o ponto, é milhar brasileiro
+    // Exemplo: 3.151 = 3151 (não 3.151)
+    if (parts.length === 2 && parts[1].length === 3) {
+      // Remover ponto (é separador de milhar)
       str = str.replace(/\./g, '');
-      console.log(`🔢 Separador de milhar: ${str}`);
-    } else {
-      // Decimal: 123.45 → 123.45
-      console.log(`🔢 Decimal: ${str}`);
+      const num = parseInt(str, 10);
+      console.log(`✅ Milhar BR (ponto): ${value} → ${num}`);
+      return num;
+    }
+    
+    // Se tem 1-2 dígitos após o ponto, é decimal
+    // Exemplo: 40.88 = 40.88
+    if (parts.length === 2 && parts[1].length <= 2) {
+      const num = Number(str);
+      const result = Math.ceil(num);
+      console.log(`✅ Decimal US (ponto): ${value} → ${num} → ${result}`);
+      return result;
+    }
+    
+    // Múltiplos pontos = separador de milhar
+    if (parts.length > 2) {
+      str = str.replace(/\./g, '');
+      const num = parseInt(str, 10);
+      console.log(`✅ Milhares múltiplos: ${value} → ${num}`);
+      return num;
     }
   }
   
+  // Caso 2c: Tem ponto E vírgula
+  if (hasDot && hasComma) {
+    const lastDot = str.lastIndexOf('.');
+    const lastComma = str.lastIndexOf(',');
+    
+    if (lastComma > lastDot) {
+      // Padrão BR: 1.234,56 → 1234.56
+      str = str.replace(/\./g, '').replace(',', '.');
+      const num = Number(str);
+      const result = Math.ceil(num);
+      console.log(`✅ BR completo: ${value} → ${num} → ${result}`);
+      return result;
+    } else {
+      // Padrão US: 1,234.56 → 1234.56
+      str = str.replace(/,/g, '');
+      const num = Number(str);
+      const result = Math.ceil(num);
+      console.log(`✅ US completo: ${value} → ${num} → ${result}`);
+      return result;
+    }
+  }
+  
+  // Fallback: tentar converter direto
   const num = Number(str);
   if (!Number.isFinite(num) || num < 0) {
-    throw new Error(`Valor inválido: ${value} → ${str}`);
+    console.error(`❌ Valor inválido: ${value} → ${str}`);
+    throw new Error(`Valor inválido: ${value}`);
   }
   
   const result = Math.ceil(num);
-  console.log(`✅ Resultado final: ${num} → ${result}`);
-  
-  // Alertar se valor mudou drasticamente (possível erro)
-  const originalNum = Number(String(value).replace(/[^\d,.-]/g, '').replace(',', '.'));
-  if (originalNum > 0 && (result / originalNum > 10 || originalNum / result > 10)) {
-    console.warn(`⚠️  ATENÇÃO: Conversão suspeita! Original: ${value} → ${result} (${originalNum} → ${result})`);
-  }
-  
+  console.log(`⚠️ Fallback: ${value} → ${num} → ${result}`);
   return result;
 }
 
