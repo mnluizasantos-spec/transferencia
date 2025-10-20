@@ -10,6 +10,82 @@ const { verifyToken, requireRole } = require('./utils/middleware');
 const { validateImportRow, validateFileSize, getClientIP, getUserAgent, parseBrazilianDate, parseExcelDate } = require('./utils/validators');
 const { logInfo, logAudit } = require('./utils/logger');
 
+/**
+ * Função robusta para parsing de quantidades
+ * Detecta formato brasileiro vs internacional e converte corretamente
+ * @param {any} value - Valor da quantidade (pode ser string ou número)
+ * @returns {number} Quantidade convertida e arredondada para cima
+ */
+function parseQuantity(value) {
+  // Converter para string e limpar
+  let str = String(value).trim();
+  
+  // Remover espaços
+  str = str.replace(/\s/g, '');
+  
+  // Log do valor original
+  console.log(`🔍 Parsing quantidade: "${value}" → "${str}"`);
+  
+  // Se for apenas número sem separadores, retornar direto
+  if (/^\d+$/.test(str)) {
+    const num = parseInt(str, 10);
+    console.log(`✅ Número inteiro: ${num}`);
+    return num;
+  }
+  
+  // Detectar formato
+  const hasComma = str.includes(',');
+  const hasDot = str.includes('.');
+  
+  if (hasComma && hasDot) {
+    // Tem ambos - determinar qual é decimal
+    const lastComma = str.lastIndexOf(',');
+    const lastDot = str.lastIndexOf('.');
+    
+    if (lastComma > lastDot) {
+      // BR: 1.234,56 - vírgula é decimal, ponto é separador de milhar
+      str = str.replace(/\./g, '').replace(',', '.');
+      console.log(`🇧🇷 Formato BR detectado: ${str}`);
+    } else {
+      // US: 1,234.56 - vírgula é separador de milhar, ponto é decimal
+      str = str.replace(/,/g, '');
+      console.log(`🇺🇸 Formato US detectado: ${str}`);
+    }
+  } else if (hasComma) {
+    // Só vírgula - assumir decimal brasileiro
+    str = str.replace(',', '.');
+    console.log(`🇧🇷 Apenas vírgula (decimal BR): ${str}`);
+  } else if (hasDot) {
+    // Só ponto - pode ser decimal ou separador de milhar
+    // Se tem mais de 2 dígitos após o ponto, provavelmente é separador de milhar
+    const parts = str.split('.');
+    if (parts.length === 2 && parts[1].length > 2) {
+      // Separador de milhar: 1.234 → 1234
+      str = str.replace(/\./g, '');
+      console.log(`🔢 Separador de milhar: ${str}`);
+    } else {
+      // Decimal: 123.45 → 123.45
+      console.log(`🔢 Decimal: ${str}`);
+    }
+  }
+  
+  const num = Number(str);
+  if (!Number.isFinite(num) || num < 0) {
+    throw new Error(`Valor inválido: ${value} → ${str}`);
+  }
+  
+  const result = Math.ceil(num);
+  console.log(`✅ Resultado final: ${num} → ${result}`);
+  
+  // Alertar se valor mudou drasticamente (possível erro)
+  const originalNum = Number(String(value).replace(/[^\d,.-]/g, '').replace(',', '.'));
+  if (originalNum > 0 && (result / originalNum > 10 || originalNum / result > 10)) {
+    console.warn(`⚠️  ATENÇÃO: Conversão suspeita! Original: ${value} → ${result} (${originalNum} → ${result})`);
+  }
+  
+  return result;
+}
+
 // Garantir que a tabela import_files exista (criação leve, idempotente)
 async function ensureImportFilesTable(sql) {
   await sql`
@@ -117,7 +193,7 @@ async function handleValidate(event, sql, user) {
 
   const firstSheetName = workbook.SheetNames[0];
   const worksheet = workbook.Sheets[firstSheetName];
-  const data = XLSX.utils.sheet_to_json(worksheet);
+  const data = XLSX.utils.sheet_to_json(worksheet, { raw: true });
 
   if (data.length === 0) {
     throw validationError('Arquivo vazio');
@@ -202,7 +278,7 @@ async function handleExecute(event, sql, user) {
 
   const firstSheetName = workbook.SheetNames[0];
   const worksheet = workbook.Sheets[firstSheetName];
-  const data = XLSX.utils.sheet_to_json(worksheet);
+  const data = XLSX.utils.sheet_to_json(worksheet, { raw: true });
 
   if (data.length === 0) {
     throw validationError('Arquivo vazio');
@@ -263,10 +339,11 @@ async function handleExecute(event, sql, user) {
       // Usar nome do solicitante diretamente do Excel
       const solicitanteName = row.Solicitante || row.solicitante;
 
-      // Corrigir quantidade: tratar vírgula como decimal, remover separador de milhar e arredondar para cima
+      // Usar função robusta de parsing de quantidade
       const rawQty = row.Quantidade ?? row.quantidade ?? '';
-      const parsedQty = Math.ceil(Number(String(rawQty).replace(/\./g, '').replace(',', '.')));
-      if (!Number.isFinite(parsedQty) || parsedQty <= 0) {
+      const parsedQty = parseQuantity(rawQty);
+      
+      if (parsedQty <= 0) {
         throw new Error(`Quantidade inválida: ${rawQty}`);
       }
 
