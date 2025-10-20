@@ -263,6 +263,13 @@ async function handleExecute(event, sql, user) {
       // Usar nome do solicitante diretamente do Excel
       const solicitanteName = row.Solicitante || row.solicitante;
 
+      // Corrigir quantidade: tratar vírgula como decimal, remover separador de milhar e arredondar para cima
+      const rawQty = row.Quantidade ?? row.quantidade ?? '';
+      const parsedQty = Math.ceil(Number(String(rawQty).replace(/\./g, '').replace(',', '.')));
+      if (!Number.isFinite(parsedQty) || parsedQty <= 0) {
+        throw new Error(`Quantidade inválida: ${rawQty}`);
+      }
+
       // Criar solicitação
       const [request] = await sql`
         INSERT INTO material_requests 
@@ -270,7 +277,7 @@ async function handleExecute(event, sql, user) {
         VALUES 
           (${row.Material || row.material},
            ${row.Descrição || row.Descricao || row.descrição || row.descricao},
-           ${parseInt(String(row.Quantidade || row.quantidade).replace(/[.,]/g, ''), 10)},
+           ${parsedQty},
            ${row.Unidade || row.unidade || 'pc'},
            ${row.Justificativa || row.justificativa || null},
            ${solicitanteName},
