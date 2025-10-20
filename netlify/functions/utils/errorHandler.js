@@ -14,6 +14,7 @@ const ERROR_TYPES = {
   NOT_FOUND: 'NOT_FOUND',
   CONFLICT: 'CONFLICT',
   DATABASE: 'DATABASE_ERROR',
+  TIMEOUT: 'TIMEOUT_ERROR',
   INTERNAL: 'INTERNAL_ERROR',
   RATE_LIMIT: 'RATE_LIMIT_ERROR'
 };
@@ -43,6 +44,7 @@ function getStatusCode(errorType) {
     [ERROR_TYPES.CONFLICT]: 409,
     [ERROR_TYPES.RATE_LIMIT]: 429,
     [ERROR_TYPES.DATABASE]: 500,
+    [ERROR_TYPES.TIMEOUT]: 504,
     [ERROR_TYPES.INTERNAL]: 500
   };
 
@@ -61,6 +63,7 @@ function getUserFriendlyMessage(error) {
     [ERROR_TYPES.CONFLICT]: 'Conflito com dados existentes.',
     [ERROR_TYPES.RATE_LIMIT]: 'Muitas requisições. Tente novamente em alguns instantes.',
     [ERROR_TYPES.DATABASE]: 'Erro ao acessar o banco de dados.',
+    [ERROR_TYPES.TIMEOUT]: 'Tempo limite excedido. Tente novamente em alguns instantes.',
     [ERROR_TYPES.INTERNAL]: 'Erro interno do servidor.'
   };
 
@@ -172,6 +175,13 @@ function databaseError(message, details = {}) {
   return new AppError(message, ERROR_TYPES.DATABASE, 500, details);
 }
 
+/**
+ * Cria erro de timeout
+ */
+function timeoutError(message = 'Tempo limite excedido', details = {}) {
+  return new AppError(message, ERROR_TYPES.TIMEOUT, 504, details);
+}
+
 module.exports = {
   ERROR_TYPES,
   AppError,
@@ -182,6 +192,7 @@ module.exports = {
   authorizationError,
   notFoundError,
   conflictError,
-  databaseError
+  databaseError,
+  timeoutError
 };
 

@@ -7,13 +7,14 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getDB } = require('./utils/db');
 const { logInfo, logWarn, logAudit } = require('./utils/logger');
-const { withErrorHandling, authenticationError, validationError, conflictError } = require('./utils/errorHandler');
+const { withErrorHandling, authenticationError, validationError, conflictError, timeoutError, databaseError } = require('./utils/errorHandler');
 const { validateUserData, isValidEmail, getClientIP, getUserAgent } = require('./utils/validators');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const MAX_LOGIN_ATTEMPTS = parseInt(process.env.MAX_LOGIN_ATTEMPTS || '5', 10);
 const LOCKOUT_DURATION = parseInt(process.env.LOCKOUT_DURATION || '15', 10); // minutos
+const QUERY_TIMEOUT = parseInt(process.env.DB_QUERY_TIMEOUT || '10000', 10); // 10 segundos
 
 /**
  * Gera JWT token
@@ -39,8 +40,33 @@ function hashToken(token) {
 }
 
 /**
+ * Executa query com timeout
+ * @param {Function} queryFn - Função que executa a query
+ * @param {string} operation - Nome da operação para logs
+ * @returns {Promise} Resultado da query
+ */
+async function executeWithTimeout(queryFn, operation) {
+  try {
+    return await Promise.race([
+      queryFn(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error(`${operation} timeout após ${QUERY_TIMEOUT}ms`)), QUERY_TIMEOUT)
+      )
+    ]);
+  } catch (error) {
+    if (error.message.includes('timeout')) {
+      throw timeoutError(`Operação de ${operation} demorou muito para responder`);
+    }
+    if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
+      throw databaseError(`Erro de conexão com o banco de dados: ${error.message}`);
+    }
+    throw error;
+  }
+}
+
+/**
  * POST /api/auth/login
- * Autenticação de usuário
+ * Autenticação de usuário com timeout e tratamento de erros melhorado
  */
 async function handleLogin(event, sql) {
   const { email, password } = JSON.parse(event.body || '{}');
@@ -53,81 +79,100 @@ async function handleLogin(event, sql) {
     throw validationError('Email inválido');
   }
 
-  // Buscar usuário com role
-  const [user] = await sql`
-    SELECT 
-      u.id,
-      u.email,
-      u.password_hash,
-      u.nome,
-      u.name,
-      u.role,
-      u.deleted_at
-    FROM users u
-    WHERE u.email = ${email.toLowerCase()} 
-    AND u.deleted_at IS NULL
-  `;
+  try {
+    // Buscar usuário com role (com timeout)
+    const [user] = await executeWithTimeout(async () => {
+      return await sql`
+        SELECT 
+          u.id,
+          u.email,
+          u.password_hash,
+          u.nome,
+          u.name,
+          u.role,
+          u.deleted_at
+        FROM users u
+        WHERE u.email = ${email.toLowerCase()} 
+        AND u.deleted_at IS NULL
+      `;
+    }, 'busca de usuário');
 
-  if (!user) {
-    logWarn('login_failed', 'Usuário não encontrado', { email });
-    throw authenticationError('Email ou senha inválidos');
+    if (!user) {
+      logWarn('login_failed', 'Usuário não encontrado', { email });
+      throw authenticationError('Email ou senha inválidos');
+    }
+
+    // Verificar se está ativo (deleted_at é NULL)
+    if (user.deleted_at) {
+      throw authenticationError('Conta desativada. Entre em contato com o administrador.');
+    }
+
+    // Verificar senha
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+
+    if (!isPasswordValid) {
+      logWarn('login_failed', 'Senha incorreta', { email });
+      throw authenticationError('Email ou senha inválidos');
+    }
+
+    // Login bem-sucedido
+
+    // Gerar token
+    const token = generateToken(user);
+    const tokenHash = hashToken(token);
+
+    // Salvar sessão (com timeout)
+    const expiresAt = new Date(Date.now() + (24 * 60 * 60 * 1000)); // 24 horas
+    await executeWithTimeout(async () => {
+      return await sql`
+        INSERT INTO sessions (user_id, token_hash, expires_at)
+        VALUES (${user.id}, ${tokenHash}, ${expiresAt})
+      `;
+    }, 'criação de sessão');
+
+    // Log de auditoria (com timeout)
+    await executeWithTimeout(async () => {
+      return await logAudit(
+        sql,
+        user.id,
+        'login_success',
+        'users',
+        user.id,
+        {},
+        getClientIP(event),
+        getUserAgent(event)
+      );
+    }, 'log de auditoria');
+
+    logInfo('user_logged_in', { userId: user.id, email: user.email });
+
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        success: true,
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          nome: user.nome,
+          role: user.role,
+          forcePasswordChange: user.force_password_change
+        }
+      })
+    };
+    
+  } catch (error) {
+    // Se for erro de timeout ou conexão, logar e re-throw
+    if (error.type === 'TIMEOUT_ERROR' || error.type === 'DATABASE_ERROR') {
+      logWarn('login_timeout', 'Timeout ou erro de conexão durante login', { 
+        email, 
+        error: error.message,
+        type: error.type 
+      });
+    }
+    throw error;
   }
-
-  // Verificar se está ativo (deleted_at é NULL)
-  if (user.deleted_at) {
-    throw authenticationError('Conta desativada. Entre em contato com o administrador.');
-  }
-
-  // Verificar senha
-  const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-
-  if (!isPasswordValid) {
-    logWarn('login_failed', 'Senha incorreta', { email });
-    throw authenticationError('Email ou senha inválidos');
-  }
-
-  // Login bem-sucedido
-
-  // Gerar token
-  const token = generateToken(user);
-  const tokenHash = hashToken(token);
-
-  // Salvar sessão
-  const expiresAt = new Date(Date.now() + (24 * 60 * 60 * 1000)); // 24 horas
-  await sql`
-    INSERT INTO sessions (user_id, token_hash, expires_at)
-    VALUES (${user.id}, ${tokenHash}, ${expiresAt})
-  `;
-
-  // Log de auditoria
-  await logAudit(
-    sql,
-    user.id,
-    'login_success',
-    'users',
-    user.id,
-    {},
-    getClientIP(event),
-    getUserAgent(event)
-  );
-
-  logInfo('user_logged_in', { userId: user.id, email: user.email });
-
-  return {
-    statusCode: 200,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      success: true,
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        nome: user.nome,
-        role: user.role,
-        forcePasswordChange: user.force_password_change
-      }
-    })
-  };
 }
 
 /**
