@@ -35,6 +35,7 @@
         <div class="nav-container">
             <a href="#dashboard" class="nav-link active" onclick="showTab('dashboard')">📊 Dashboard</a>
             <a href="#reports" class="nav-link" onclick="showTab('reports')">📈 Relatórios</a>
+            <a href="#imports" class="nav-link" id="tab-imports" style="display:none" onclick="showTab('imports')">📥 Importações</a>
         </div>
     </nav>
 
@@ -255,6 +256,16 @@
         </div>
     </div>
 
+    <!-- Imports Section (Admin only) -->
+    <div id="imports-section" class="container" style="display: none;">
+        <div class="section-header">
+            <h2>📥 Importações</h2>
+            <p>Lotes de importação e arquivos originais</p>
+        </div>
+        <div id="imports-batches"></div>
+        <div id="imports-items" style="margin-top:16px"></div>
+    </div>
+
     <!-- Modal de Solicitação -->
     <div class="modal-overlay" id="request-modal">
         <div class="modal-content">
@@ -423,6 +434,12 @@
                 if (novaSolicitacaoBtn && novaSolicitacaoBtn.textContent.includes('Nova Solicitação')) {
                     novaSolicitacaoBtn.style.display = 'none';
                 }
+            }
+
+            // Mostrar aba Importações apenas para admin
+            if (user.role === 'admin') {
+                const tab = document.getElementById('tab-imports');
+                if (tab) tab.style.display = '';
             }
         }
 
@@ -1165,6 +1182,7 @@
             // Esconder todas as seções
             document.getElementById('dashboard-section').style.display = 'none';
             document.getElementById('reports-section').style.display = 'none';
+            document.getElementById('imports-section').style.display = 'none';
             
             // Remover classe active de todos os links
             document.querySelectorAll('.nav-link').forEach(link => {
@@ -1186,6 +1204,10 @@
                 
                 document.getElementById('report-end-date').value = endDate.toISOString().split('T')[0];
                 document.getElementById('report-start-date').value = startDate.toISOString().split('T')[0];
+            } else if (tabName === 'imports') {
+                document.getElementById('imports-section').style.display = 'block';
+                document.querySelector('.nav-link[href="#imports"]').classList.add('active');
+                loadBatches();
             }
         };
 
@@ -1376,6 +1398,79 @@
         window.printReports = function() {
             window.print();
         };
+        // ============================
+        // Importações (Admin)
+        // ============================
+        async function authFetch(url, options = {}) {
+            const token = localStorage.getItem('auth_token');
+            return fetch(url, { ...options, headers: { ...(options.headers||{}), Authorization: `Bearer ${token}` } });
+        }
+
+        async function loadBatches() {
+            try {
+                const res = await authFetch('/.netlify/functions/imports?list=1');
+                const data = await res.json();
+                const el = document.getElementById('imports-batches');
+                if (!res.ok) throw new Error(data?.error || 'Erro ao listar lotes');
+                el.innerHTML = `
+                    <table class="table">
+                        <thead><tr>
+                            <th>Lote</th><th>Criado em</th><th>Usuário</th><th>Sucesso</th><th>Erros</th><th>Original</th><th>Ações</th>
+                        </tr></thead>
+                        <tbody>
+                            ${data.batches.map(b => `
+                                <tr>
+                                    <td>${b.id}</td>
+                                    <td>${new Date(b.created_at).toLocaleString('pt-BR')}</td>
+                                    <td>${b.user_name || ''} (${b.user_email || ''})</td>
+                                    <td>${b.success_count || 0}</td>
+                                    <td>${b.error_count || 0}</td>
+                                    <td>${b.has_original ? 'Disponível' : '-'}</td>
+                                    <td>
+                                        <button class="btn btn-small" onclick="viewBatch(${b.id})">Ver itens</button>
+                                        <a class="btn btn-small" href="/.netlify/functions/imports?downloadOriginal=1&batchId=${b.id}" ${b.has_original ? '' : 'aria-disabled="true" onclick="return false;"'}>Baixar original</a>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>`;
+            } catch (e) {
+                alert(e.message);
+            }
+        }
+
+        async function viewBatch(batchId) {
+            try {
+                const res = await authFetch(`/.netlify/functions/imports?batchId=${batchId}`);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data?.error || 'Erro ao carregar itens do lote');
+                const el = document.getElementById('imports-items');
+                el.innerHTML = `
+                    <h3>Itens do Lote #${batchId}</h3>
+                    <table class="table">
+                        <thead><tr>
+                            <th>ID</th><th>Material</th><th>Descrição</th><th>Qtd</th><th>Un</th><th>Urgência</th><th>Prazo</th><th>Criado em</th><th>Status</th>
+                        </tr></thead>
+                        <tbody>
+                            ${data.items.map(r => `
+                                <tr>
+                                    <td>${r.id}</td>
+                                    <td>${r.material_code}</td>
+                                    <td>${r.descricao || ''}</td>
+                                    <td>${Math.ceil(Number(r.quantidade)).toLocaleString('pt-BR')}</td>
+                                    <td>${r.unidade || ''}</td>
+                                    <td>${r.urgencia || ''}</td>
+                                    <td>${r.prazo ? new Date(r.prazo).toLocaleDateString('pt-BR') : ''}</td>
+                                    <td>${new Date(r.created_at).toLocaleString('pt-BR')}</td>
+                                    <td>${r.status}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>`;
+            } catch (e) {
+                alert(e.message);
+            }
+        }
     </script>
 </body>
 </html>
