@@ -1471,6 +1471,10 @@
                 alert(e.message);
             }
         }
+
+        // Expor funções no escopo global para uso em onclick
+        window.loadBatches = loadBatches;
+        window.viewBatch = viewBatch;
     </script>
 </body>
 </html>
