@@ -7,8 +7,25 @@ const XLSX = require('xlsx');
 const { getDB } = require('./utils/db');
 const { withErrorHandling, validationError } = require('./utils/errorHandler');
 const { verifyToken, requireRole } = require('./utils/middleware');
-const { validateImportRow, validateFileSize, getClientIP, getUserAgent, parseBrazilianDate, parseExcelDate, validateMaterialCode } = require('./utils/validators');
+const { validateImportRow, validateFileSize, getClientIP, getUserAgent, parseBrazilianDate, parseExcelDate } = require('./utils/validators');
 const { logInfo, logAudit } = require('./utils/logger');
+
+// Garantir que a tabela import_files exista (criação leve, idempotente)
+async function ensureImportFilesTable(sql) {
+  await sql`
+    CREATE TABLE IF NOT EXISTS import_files (
+      id BIGSERIAL PRIMARY KEY,
+      batch_id BIGINT NOT NULL REFERENCES import_batches(id) ON DELETE CASCADE,
+      original_filename TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      size_bytes INTEGER NOT NULL,
+      file_bytes BYTEA NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      user_id BIGINT REFERENCES users(id)
+    )
+  `;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_import_files_batch ON import_files(batch_id)`;
+}
 
 /**
  * GET /api/import/template
@@ -205,6 +222,25 @@ async function handleExecute(event, sql, user) {
   `;
 
   const batchId = batch.id;
+  
+  // Salvar arquivo original no Neon (tabela import_files)
+  try {
+    await ensureImportFilesTable(sql);
+    // Definir MIME simples por extensão
+    const filename = requestBody.filename || 'import.xlsx';
+    const lower = filename.toLowerCase();
+    const mime = lower.endsWith('.xlsx') || lower.endsWith('.xls')
+      ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      : 'application/octet-stream';
+    await sql`
+      INSERT INTO import_files (batch_id, original_filename, mime_type, size_bytes, file_bytes, user_id)
+      VALUES (${batchId}, ${filename}, ${mime}, ${fileBuffer.length}, ${fileBuffer}, ${user.userId})
+      ON CONFLICT (batch_id) DO NOTHING
+    `;
+  } catch (e) {
+    console.warn('Não foi possível salvar arquivo original do lote', { error: e?.message });
+    // Continua import normalmente mesmo se falhar o save do arquivo
+  }
   let successCount = 0;
   let errorCount = 0;
   const importErrors = [];
@@ -227,18 +263,12 @@ async function handleExecute(event, sql, user) {
       // Usar nome do solicitante diretamente do Excel
       const solicitanteName = row.Solicitante || row.solicitante;
 
-      // Sanitizar código do material (trim apenas, sem normalização)
-      const materialCode = String(row.Material || row.material || '').trim();
-
-      console.log(`Código do material original: "${row.Material || row.material}"`);
-      console.log(`Código do material sanitizado: "${materialCode}"`);
-
       // Criar solicitação
       const [request] = await sql`
         INSERT INTO material_requests 
           (material_code, material_description, quantidade, unidade, justificativa, requester_name, urgencia, deadline, status, created_by)
         VALUES 
-          (${materialCode},
+          (${row.Material || row.material},
            ${row.Descrição || row.Descricao || row.descrição || row.descricao},
            ${parseInt(String(row.Quantidade || row.quantidade).replace(/[.,]/g, ''), 10)},
            ${row.Unidade || row.unidade || 'pc'},
