@@ -1428,7 +1428,7 @@
                                     <td>${b.has_original ? 'Disponível' : '-'}</td>
                                     <td>
                                         <button class="btn btn-small" onclick="viewBatch(${b.id})">Ver itens</button>
-                                        <a class="btn btn-small" href="/.netlify/functions/imports?downloadOriginal=1&batchId=${b.id}" ${b.has_original ? '' : 'aria-disabled="true" onclick="return false;"'}>Baixar original</a>
+                                        <button class="btn btn-small" onclick="downloadOriginal(${b.id})" ${b.has_original ? '' : 'disabled'}>Baixar original</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -1472,9 +1472,42 @@
             }
         }
 
+        async function downloadOriginal(batchId) {
+            try {
+                const res = await authFetch(`/.netlify/functions/imports?downloadOriginal=1&batchId=${batchId}`);
+                if (!res.ok) {
+                    const error = await res.json();
+                    throw new Error(error?.error || 'Erro ao baixar arquivo');
+                }
+                
+                // Obter nome do arquivo do header Content-Disposition
+                const contentDisposition = res.headers.get('Content-Disposition');
+                const filename = contentDisposition 
+                    ? contentDisposition.split('filename=')[1]?.replace(/"/g, '') 
+                    : `importacao_${batchId}.xlsx`;
+                
+                // Converter resposta para blob
+                const blob = await res.blob();
+                
+                // Criar link de download
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+            } catch (e) {
+                alert('Erro ao baixar arquivo: ' + e.message);
+            }
+        }
+
         // Expor funções no escopo global para uso em onclick
         window.loadBatches = loadBatches;
         window.viewBatch = viewBatch;
+        window.downloadOriginal = downloadOriginal;
     </script>
 </body>
 </html>
