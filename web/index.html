@@ -6,6 +6,7 @@
     <title>Dashboard - Sistema de Transferência de Material</title>
     <link rel="stylesheet" href="/css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
     <!-- Header -->
@@ -128,6 +129,7 @@
         <div id="selection-actions" style="display: none; margin-bottom: 15px;">
             <span id="selection-info">0 itens selecionados</span>
             <button class="btn btn-primary btn-small" onclick="printSelected()" style="margin-left: 10px;">🖨️ Imprimir Selecionados</button>
+            <button class="btn btn-success btn-small" onclick="exportSelectedToExcel()" style="margin-left: 10px;">📥 Exportar Excel</button>
         </div>
 
         <!-- Table -->
@@ -684,6 +686,7 @@
             document.getElementById('filter-data-solicitacao-fim').value = '';
             document.getElementById('filter-prazo-inicio').value = '';
             document.getElementById('filter-prazo-fim').value = '';
+            loadDashboard();  // Recarregar totais do backend
             loadRequests();
         }
 
@@ -1122,6 +1125,65 @@
                 alert(`Erro ao gerar impressão: ${error.message}`);
             }
         };
+
+        window.exportSelectedToExcel = function() {
+            if (selectedIds.size === 0) {
+                alert('Nenhum item selecionado');
+                return;
+            }
+
+            const selectedRequests = currentRequests.filter(req => selectedIds.has(req.id));
+            
+            if (selectedRequests.length === 0) {
+                alert('Nenhum registro encontrado para exportar');
+                return;
+            }
+
+            const excelData = selectedRequests.map(req => ({
+                'ID': req.id,
+                'Data Solicitacao': formatDateForExcel(req.created_at),
+                'Urgencia': req.urgencia,
+                'Prazo': req.deadline ? formatDateForExcel(req.deadline) : '',
+                'Codigo': req.material_code,
+                'Descricao': req.material_description,
+                'Solicitante': req.solicitante_nome || req.requester_name,
+                'Quantidade': Math.ceil(Number(req.quantidade)),
+                'Unidade': req.unidade,
+                'Status': req.status,
+                'Observacao': req.justificativa || '',
+                'Atualizado': formatDateForExcel(req.updated_at)
+            }));
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(excelData);
+
+            ws['!cols'] = [
+                { wch: 8 }, { wch: 18 }, { wch: 10 }, { wch: 12 },
+                { wch: 15 }, { wch: 40 }, { wch: 25 }, { wch: 12 },
+                { wch: 8 }, { wch: 15 }, { wch: 40 }, { wch: 18 }
+            ];
+
+            XLSX.utils.book_append_sheet(wb, ws, 'Solicitacoes');
+
+            const now = new Date();
+            const fileName = `solicitacoes_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}.xlsx`;
+
+            XLSX.writeFile(wb, fileName);
+
+            alert(`${selectedRequests.length} registro(s) exportado(s) com sucesso!`);
+        };
+
+        function formatDateForExcel(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
 
         window.handleImportFile = async function(event) {
             const file = event.target.files[0];
