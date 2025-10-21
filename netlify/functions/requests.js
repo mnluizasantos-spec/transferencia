@@ -41,59 +41,67 @@ async function handleList(event, sql, user) {
     
     console.log('Filtros recebidos:', { statusFilter, urgenciaFilter, searchFilter, created_at_start, created_at_end, deadline_start, deadline_end });
     
-    // Construir filtros SQL (não JavaScript!)
-    let whereConditions = ['deleted_at IS NULL'];
-    let queryParams = {};
-    
-    if (statusFilter) {
-      whereConditions.push('status = ${status}');
-      queryParams.status = statusFilter;
-    }
-    
-    if (urgenciaFilter) {
-      whereConditions.push('urgencia = ${urgencia}');
-      queryParams.urgencia = urgenciaFilter;
-    }
-    
-    if (created_at_start) {
-      whereConditions.push('created_at >= ${created_at_start}::timestamp');
-      queryParams.created_at_start = created_at_start;
-    }
-    
-    if (created_at_end) {
-      whereConditions.push('created_at <= ${created_at_end}::timestamp + interval \'1 day\'');
-      queryParams.created_at_end = created_at_end;
-    }
-    
-    if (deadline_start) {
-      whereConditions.push('deadline >= ${deadline_start}::date');
-      queryParams.deadline_start = deadline_start;
-    }
-    
-    if (deadline_end) {
-      whereConditions.push('deadline <= ${deadline_end}::date');
-      queryParams.deadline_end = deadline_end;
-    }
-    
-    if (searchFilter) {
-      whereConditions.push(`(
-        material_description ILIKE ${sql('%' + searchFilter + '%')} OR 
-        material_code ILIKE ${sql('%' + searchFilter + '%')} OR 
-        requester_name ILIKE ${sql('%' + searchFilter + '%')}
-      )`);
-    }
-    
-    // Query otimizada usando índices
-    const requests = await sql`
+    // Buscar todas as solicitações (aumentado LIMIT)
+    let requests = await sql`
       SELECT 
-        id, material_code, material_description, quantidade, unidade,
-        requester_name, urgencia, status, deadline, justificativa,
-        created_at, updated_at, created_by
+        id,
+        material_code,
+        material_description,
+        quantidade,
+        unidade,
+        requester_name,
+        urgencia,
+        status,
+        deadline,
+        justificativa,
+        created_at,
+        updated_at,
+        created_by
       FROM material_requests
-      WHERE ${sql(whereConditions.join(' AND '))}
+      WHERE deleted_at IS NULL
       ORDER BY created_at DESC
       LIMIT 500
     `;
+    
+    // Aplicar filtros em JavaScript (como antes)
+    if (statusFilter) {
+      requests = requests.filter(r => r.status === statusFilter);
+    }
+    
+    if (urgenciaFilter) {
+      requests = requests.filter(r => r.urgencia === urgenciaFilter);
+    }
+    
+    if (searchFilter) {
+      const search = searchFilter.toLowerCase();
+      requests = requests.filter(r => 
+        (r.material_description && r.material_description.toLowerCase().includes(search)) ||
+        (r.material_code && r.material_code.toLowerCase().includes(search)) ||
+        (r.requester_name && r.requester_name.toLowerCase().includes(search))
+      );
+    }
+    
+    // Aplicar filtros de data de solicitação
+    if (created_at_start) {
+      const startDate = new Date(created_at_start);
+      requests = requests.filter(r => new Date(r.created_at) >= startDate);
+    }
+    
+    if (created_at_end) {
+      const endDate = new Date(created_at_end + 'T23:59:59');
+      requests = requests.filter(r => new Date(r.created_at) <= endDate);
+    }
+    
+    // Aplicar filtros de prazo
+    if (deadline_start) {
+      const startDate = new Date(deadline_start);
+      requests = requests.filter(r => r.deadline && new Date(r.deadline) >= startDate);
+    }
+    
+    if (deadline_end) {
+      const endDate = new Date(deadline_end + 'T23:59:59');
+      requests = requests.filter(r => r.deadline && new Date(r.deadline) <= endDate);
+    }
     
     console.log('Requests List - Resultado', { count: requests.length });
     
