@@ -60,16 +60,4 @@
 [context.branch-deploy]
   environment = { NODE_ENV = "development" }
 
-# Timeout para functions (temporário até índices resolverem)
-[[functions]]
-  pattern = "requests"
-  timeout = 30
-
-[[functions]]
-  pattern = "dashboard"
-  timeout = 30
-
-[[functions]]
-  pattern = "add-indexes"
-  timeout = 30
 
