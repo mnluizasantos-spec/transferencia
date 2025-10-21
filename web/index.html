@@ -687,7 +687,24 @@
             loadRequests();
         }
 
+        function hasActiveFilters() {
+            return !!(
+                document.getElementById('search-input').value ||
+                document.getElementById('filter-status').value ||
+                document.getElementById('filter-urgencia').value ||
+                document.getElementById('filter-data-solicitacao-inicio').value ||
+                document.getElementById('filter-data-solicitacao-fim').value ||
+                document.getElementById('filter-prazo-inicio').value ||
+                document.getElementById('filter-prazo-fim').value
+            );
+        }
+
         function updateStatsFromFiltered() {
+            // Se não há filtros ativos, não atualizar (preservar dados do dashboard/backend)
+            if (!hasActiveFilters()) {
+                return;
+            }
+            
             const total = currentRequests.length;
             
             // Contar concluídos
