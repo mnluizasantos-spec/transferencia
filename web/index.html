@@ -867,6 +867,46 @@
             }
         };
 
+        // Variável global para armazenar ID da solicitação sendo recusada
+        let solicitacaoRecusaId = null;
+
+        // Função para abrir modal de recusa
+        window.recusarSeparacao = function(id) {
+            solicitacaoRecusaId = id;
+            document.getElementById('motivo-recusa').value = '';
+            document.getElementById('modal-recusa').classList.add('active');
+        };
+
+        // Função para fechar modal de recusa
+        window.fecharModalRecusa = function() {
+            document.getElementById('modal-recusa').classList.remove('active');
+            solicitacaoRecusaId = null;
+        };
+
+        // Função para confirmar recusa
+        window.confirmarRecusa = async function() {
+            const motivo = document.getElementById('motivo-recusa').value.trim();
+            
+            if (!motivo) {
+                alert('Por favor, informe o motivo da recusa');
+                return;
+            }
+            
+            try {
+                await updateRequest(solicitacaoRecusaId, { 
+                    status: 'Recusado',
+                    justificativa: `RECUSADO - Sem estoque: ${motivo}`
+                });
+                
+                alert('Solicitação recusada com sucesso');
+                fecharModalRecusa();
+                await loadRequests();
+            } catch (error) {
+                console.error('Erro ao recusar:', error);
+                alert('Erro ao recusar solicitação: ' + error.message);
+            }
+        };
+
         window.updateStatus = async function(id, newStatus) {
             const statusLabels = {
                 'Pendente': 'Pendente',
