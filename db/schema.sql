@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS material_requests (
   deadline DATE,
   production_start_date DATE,
   urgencia VARCHAR(20) DEFAULT 'Normal' CHECK (urgencia IN ('Urgente', 'Normal')),
-  status VARCHAR(50) DEFAULT 'Pendente' CHECK (status IN ('Pendente', 'Em Separação', 'Concluído', 'Cancelado')),
+  status VARCHAR(50) DEFAULT 'Pendente' CHECK (status IN ('Pendente', 'Em Separação', 'Concluído', 'Cancelado', 'Recusado')),
   created_by INTEGER NOT NULL REFERENCES users(id),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
