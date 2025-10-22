@@ -160,7 +160,7 @@ function validateRequestData(data, isUpdate = false) {
     errors.push('Urgência inválida. Deve ser: Urgente ou Normal');
   }
 
-  if (data.status && !isValidOption(data.status, ['Pendente', 'Em Separação', 'Concluído', 'Cancelado'])) {
+  if (data.status && !isValidOption(data.status, ['Pendente', 'Em Separação', 'Concluído', 'Cancelado', 'Recusado'])) {
     errors.push('Status inválido');
   }
 

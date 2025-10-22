@@ -358,6 +358,29 @@
         </div>
     </div>
 
+    <!-- Modal de Recusa -->
+    <div class="modal-overlay" id="modal-recusa">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Recusar Solicitação</h2>
+                <p><strong>Motivo:</strong> Produto não disponível em estoque</p>
+            </div>
+            <div class="modal-body">
+                <label for="motivo-recusa">Justificativa da Falta *</label>
+                <textarea 
+                    id="motivo-recusa" 
+                    rows="4" 
+                    placeholder="Descreva o motivo da falta (ex: produto esgotado, aguardando reposição, etc.)"
+                    required
+                ></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="fecharModalRecusa()">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="confirmarRecusa()">Confirmar Recusa</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { requireAuth, getCurrentUser, logout, isAdmin, isSeparador } from '/js/auth.js';
         import { getRequests, getDashboardStats, createRequest, updateRequest, deleteRequest, getRequestHistory, printPickingList } from '/js/api.js';
@@ -544,6 +567,7 @@
                         buttons += `<button class="btn btn-warning btn-small" onclick="updateStatus(${req.id}, 'Em Separação')" title="Iniciar Separação">📦</button>`;
                     } else if (req.status === 'Em Separação') {
                         buttons += `<button class="btn btn-success btn-small" onclick="completeRequest(${req.id})" title="Concluir">✓</button>`;
+                        buttons += `<button class="btn btn-danger btn-small" onclick="recusarSeparacao(${req.id})" title="Recusar (Sem Estoque)">🚫</button>`;
                     }
                 } else {
                     // Botão para reverter de Concluído para Em Separação
