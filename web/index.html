@@ -83,6 +83,16 @@
                     <div class="stat-icon">✅</div>
                 </div>
             </div>
+
+            <div class="stat-card danger clickable" onclick="filterByRecusados()">
+                <div class="stat-header">
+                    <div>
+                        <div class="stat-label">Recusados</div>
+                        <div class="stat-value" id="stat-recusados">-</div>
+                    </div>
+                    <div class="stat-icon">🚫</div>
+                </div>
+            </div>
         </div>
 
         <!-- Controls -->
@@ -98,6 +108,7 @@
                     <option value="Em Separação">Em Separação</option>
                     <option value="Concluído">Concluído</option>
                     <option value="Cancelado">Cancelado</option>
+                    <option value="Recusado">Recusado</option>
                 </select>
                 <select id="filter-urgencia">
                     <option value="">Todas as Urgências</option>
@@ -504,6 +515,7 @@
                 document.getElementById('stat-atrasados').textContent = stats.atrasados;
                 document.getElementById('stat-hoje').textContent = stats.vencem_hoje;
                 document.getElementById('stat-concluidos').textContent = stats.concluidos;
+                document.getElementById('stat-recusados').textContent = stats.recusados || 0;
             } catch (error) {
                 console.error('Erro ao carregar dashboard:', error);
             }
@@ -743,17 +755,20 @@
             // Contar concluídos
             const concluidos = currentRequests.filter(r => r.status === 'Concluído').length;
             
-            // Contar em atraso (deadline < hoje e status não é Concluído/Cancelado)
+            // Contar recusados
+            const recusados = currentRequests.filter(r => r.status === 'Recusado').length;
+            
+            // Contar em atraso (deadline < hoje e status não é Concluído/Cancelado/Recusado)
             const hoje = new Date().toISOString().split('T')[0];
             const atrasados = currentRequests.filter(r => {
-                if (!r.deadline || r.status === 'Concluído' || r.status === 'Cancelado') return false;
+                if (!r.deadline || r.status === 'Concluído' || r.status === 'Cancelado' || r.status === 'Recusado') return false;
                 const deadlineDate = r.deadline.split('T')[0];
                 return deadlineDate < hoje;
             }).length;
             
             // Contar vencem hoje
             const vencemHoje = currentRequests.filter(r => {
-                if (!r.deadline || r.status === 'Concluído' || r.status === 'Cancelado') return false;
+                if (!r.deadline || r.status === 'Concluído' || r.status === 'Cancelado' || r.status === 'Recusado') return false;
                 const deadlineDate = r.deadline.split('T')[0];
                 return deadlineDate === hoje;
             }).length;
@@ -763,6 +778,7 @@
             document.getElementById('stat-atrasados').textContent = atrasados;
             document.getElementById('stat-hoje').textContent = vencemHoje;
             document.getElementById('stat-concluidos').textContent = concluidos;
+            document.getElementById('stat-recusados').textContent = recusados;
         }
 
         window.limparFiltros = limparFiltros;
@@ -1074,6 +1090,13 @@
         window.filterByCompleted = function() {
             document.getElementById('filter-id').value = '';
             document.getElementById('filter-status').value = 'Concluído';
+            document.getElementById('filter-urgencia').value = '';
+            loadRequests();
+        };
+
+        window.filterByRecusados = function() {
+            document.getElementById('filter-id').value = '';
+            document.getElementById('filter-status').value = 'Recusado';
             document.getElementById('filter-urgencia').value = '';
             loadRequests();
         };
