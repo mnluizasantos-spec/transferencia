@@ -38,8 +38,9 @@ async function handleList(event, sql, user) {
     const created_at_end = params.created_at_end;
     const deadline_start = params.deadline_start;
     const deadline_end = params.deadline_end;
+    const idFilter = params.id;
     
-    console.log('Filtros recebidos:', { statusFilter, urgenciaFilter, searchFilter, created_at_start, created_at_end, deadline_start, deadline_end });
+    console.log('Filtros recebidos:', { statusFilter, urgenciaFilter, searchFilter, created_at_start, created_at_end, deadline_start, deadline_end, idFilter });
     
     // Buscar todas as solicitações (aumentado LIMIT)
     let requests = await sql`
@@ -64,6 +65,10 @@ async function handleList(event, sql, user) {
     `;
     
     // Aplicar filtros em JavaScript (como antes)
+    if (idFilter) {
+      requests = requests.filter(r => r.id === parseInt(idFilter));
+    }
+    
     if (statusFilter) {
       requests = requests.filter(r => r.status === statusFilter);
     }

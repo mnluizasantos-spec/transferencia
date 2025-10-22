@@ -91,6 +91,7 @@
                 <div class="search-box">
                     <input type="text" id="search-input" placeholder="🔍 Buscar por material ou solicitante...">
                 </div>
+                <input type="number" id="filter-id" placeholder="🔢 Filtrar por ID" min="1" step="1" style="width: 150px; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
                 <select id="filter-status">
                     <option value="">Todos os Status</option>
                     <option value="Pendente">Pendente</option>
@@ -470,6 +471,7 @@
 
         function setupEventListeners() {
             document.getElementById('search-input').addEventListener('input', debounce(loadRequests, 300));
+            document.getElementById('filter-id').addEventListener('input', debounce(loadRequests, 300));
             document.getElementById('filter-status').addEventListener('change', loadRequests);
             document.getElementById('filter-urgencia').addEventListener('change', loadRequests);
             document.getElementById('filter-data-solicitacao-inicio').addEventListener('change', loadRequests);
@@ -509,6 +511,7 @@
 
         async function loadRequests() {
             const search = document.getElementById('search-input').value;
+            const filterId = document.getElementById('filter-id').value;
             const status = document.getElementById('filter-status').value;
             const urgencia = document.getElementById('filter-urgencia').value;
             const dataSolicitacaoInicio = document.getElementById('filter-data-solicitacao-inicio').value;
@@ -518,6 +521,7 @@
 
             const filters = {};
             if (search) filters.search = search;
+            if (filterId) filters.id = filterId;
             if (status) filters.status = status;
             if (urgencia) filters.urgencia = urgencia;
             if (dataSolicitacaoInicio) filters.created_at_start = dataSolicitacaoInicio;
@@ -704,6 +708,7 @@
 
         function limparFiltros() {
             document.getElementById('search-input').value = '';
+            document.getElementById('filter-id').value = '';
             document.getElementById('filter-status').value = '';
             document.getElementById('filter-urgencia').value = '';
             document.getElementById('filter-data-solicitacao-inicio').value = '';
@@ -717,6 +722,7 @@
         function hasActiveFilters() {
             return !!(
                 document.getElementById('search-input').value ||
+                document.getElementById('filter-id').value ||
                 document.getElementById('filter-status').value ||
                 document.getElementById('filter-urgencia').value ||
                 document.getElementById('filter-data-solicitacao-inicio').value ||
@@ -1012,6 +1018,7 @@
         // Funções de filtro por cards
         window.filterByAll = async function() {
             // Limpar todos os filtros
+            document.getElementById('filter-id').value = '';
             document.getElementById('filter-status').value = '';
             document.getElementById('filter-urgencia').value = '';
             document.getElementById('search-input').value = '';
@@ -1021,6 +1028,7 @@
         };
 
         window.filterByOverdue = async function() {
+            document.getElementById('filter-id').value = '';
             document.getElementById('filter-status').value = '';
             document.getElementById('filter-urgencia').value = '';
             document.getElementById('search-input').value = '';
@@ -1042,6 +1050,7 @@
         };
 
         window.filterByDueToday = async function() {
+            document.getElementById('filter-id').value = '';
             document.getElementById('filter-status').value = '';
             document.getElementById('filter-urgencia').value = '';
             document.getElementById('search-input').value = '';
@@ -1063,6 +1072,7 @@
         };
 
         window.filterByCompleted = function() {
+            document.getElementById('filter-id').value = '';
             document.getElementById('filter-status').value = 'Concluído';
             document.getElementById('filter-urgencia').value = '';
             loadRequests();
