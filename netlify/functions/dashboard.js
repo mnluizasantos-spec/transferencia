@@ -23,8 +23,8 @@ async function handleStats(event, sql, user) {
         COUNT(*) as total,
         COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
         COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
-        COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado') as atrasados,
-        COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado') as vencem_hoje
+        COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as atrasados,
+        COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vencem_hoje
       FROM material_requests
       WHERE deleted_at IS NULL
     `;
