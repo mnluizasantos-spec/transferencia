@@ -249,8 +249,8 @@ WHERE mr.deleted_at IS NULL;
 CREATE OR REPLACE VIEW v_dashboard_stats AS
 SELECT 
     COUNT(*) FILTER (WHERE deleted_at IS NULL) as total_solicitacoes,
-    COUNT(*) FILTER (WHERE deleted_at IS NULL AND prazo < CURRENT_DATE AND status != 'Concluído') as em_atraso,
-    COUNT(*) FILTER (WHERE deleted_at IS NULL AND prazo = CURRENT_DATE AND status != 'Concluído') as vence_hoje,
+    COUNT(*) FILTER (WHERE deleted_at IS NULL AND prazo < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as em_atraso,
+    COUNT(*) FILTER (WHERE deleted_at IS NULL AND prazo = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vence_hoje,
     COUNT(*) FILTER (WHERE deleted_at IS NULL AND status = 'Concluído') as concluidos,
     COUNT(*) FILTER (WHERE deleted_at IS NULL AND status = 'Pendente') as pendentes,
     COUNT(*) FILTER (WHERE deleted_at IS NULL AND status = 'Em Separação') as em_separacao,
