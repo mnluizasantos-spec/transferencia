@@ -79,6 +79,7 @@ exports.handler = withErrorHandling(async (event) => {
                 AND created_at BETWEEN ${startDate} AND ${endDate}
                 AND created_by = ${user.userId}
                 AND status != 'Cancelado'
+                AND status != 'Recusado'
                 AND deleted_at IS NULL
             `;
         } else {
@@ -90,6 +91,7 @@ exports.handler = withErrorHandling(async (event) => {
                 WHERE status = 'Concluído'
                 AND created_at BETWEEN ${startDate} AND ${endDate}
                 AND status != 'Cancelado'
+                AND status != 'Recusado'
                 AND deleted_at IS NULL
             `;
         }
