@@ -744,17 +744,17 @@
             // Contar concluídos
             const concluidos = currentRequests.filter(r => r.status === 'Concluído').length;
             
-            // Contar em atraso (deadline < hoje e status não é Concluído/Cancelado)
+            // Contar em atraso (deadline < hoje e status não é Concluído/Cancelado/Recusado)
             const hoje = new Date().toISOString().split('T')[0];
             const atrasados = currentRequests.filter(r => {
-                if (!r.deadline || r.status === 'Concluído' || r.status === 'Cancelado') return false;
+                if (!r.deadline || r.status === 'Concluído' || r.status === 'Cancelado' || r.status === 'Recusado') return false;
                 const deadlineDate = r.deadline.split('T')[0];
                 return deadlineDate < hoje;
             }).length;
             
             // Contar vencem hoje
             const vencemHoje = currentRequests.filter(r => {
-                if (!r.deadline || r.status === 'Concluído' || r.status === 'Cancelado') return false;
+                if (!r.deadline || r.status === 'Concluído' || r.status === 'Cancelado' || r.status === 'Recusado') return false;
                 const deadlineDate = r.deadline.split('T')[0];
                 return deadlineDate === hoje;
             }).length;
@@ -1042,7 +1042,7 @@
             const todayStr = today.toISOString().split('T')[0]; // yyyy-mm-dd
             
             currentRequests = currentRequests.filter(req => {
-                if (!req.deadline || req.status === 'Concluído' || req.status === 'Cancelado') return false;
+                if (!req.deadline || req.status === 'Concluído' || req.status === 'Cancelado' || req.status === 'Recusado') return false;
                 const deadlineStr = req.deadline.split('T')[0]; // yyyy-mm-dd
                 return deadlineStr < todayStr;
             });
@@ -1064,7 +1064,7 @@
             const todayStr = today.toISOString().split('T')[0]; // yyyy-mm-dd
             
             currentRequests = currentRequests.filter(req => {
-                if (!req.deadline || req.status === 'Concluído' || req.status === 'Cancelado') return false;
+                if (!req.deadline || req.status === 'Concluído' || req.status === 'Cancelado' || req.status === 'Recusado') return false;
                 const deadlineStr = req.deadline.split('T')[0]; // yyyy-mm-dd
                 return deadlineStr === todayStr;
             });
