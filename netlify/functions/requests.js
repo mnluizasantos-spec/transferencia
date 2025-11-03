@@ -42,104 +42,78 @@ async function handleList(event, sql, user) {
     
     console.log('Filtros recebidos:', { statusFilter, urgenciaFilter, searchFilter, created_at_start, created_at_end, deadline_start, deadline_end, idFilter });
     
-    // WHERE dinâmico em SQL (parametrizado)
-    const where = [sql`deleted_at IS NULL`];
+    // Buscar todas as solicitações (aumentado LIMIT)
+    let requests = await sql`
+      SELECT 
+        id,
+        material_code,
+        material_description,
+        quantidade,
+        unidade,
+        requester_name,
+        urgencia,
+        status,
+        deadline,
+        justificativa,
+        created_at,
+        updated_at,
+        created_by
+      FROM material_requests
+      WHERE deleted_at IS NULL
+      ORDER BY created_at DESC
+      LIMIT 500
+    `;
+
+    // Aplicar filtros em JavaScript (como antes)
     if (idFilter) {
-      where.push(sql`id = ${parseInt(idFilter, 10)}`);
+      requests = requests.filter(r => r.id === parseInt(idFilter));
     }
+
     if (statusFilter) {
-      where.push(sql`status = ${statusFilter}`);
+      requests = requests.filter(r => r.status === statusFilter);
     }
+
     if (urgenciaFilter) {
-      where.push(sql`urgencia = ${urgenciaFilter}`);
+      requests = requests.filter(r => r.urgencia === urgenciaFilter);
     }
+
     if (searchFilter) {
-      const pattern = `%${searchFilter}%`;
-      where.push(sql`(material_description ILIKE ${pattern} OR material_code ILIKE ${pattern} OR requester_name ILIKE ${pattern})`);
+      const search = searchFilter.toLowerCase();
+      requests = requests.filter(r => 
+        (r.material_description && r.material_description.toLowerCase().includes(search)) ||
+        (r.material_code && r.material_code.toLowerCase().includes(search)) ||
+        (r.requester_name && r.requester_name.toLowerCase().includes(search))
+      );
     }
+
+    // Aplicar filtros de data de solicitação
     if (created_at_start) {
-      where.push(sql`created_at >= ${created_at_start}`);
+      const startDate = new Date(created_at_start);
+      requests = requests.filter(r => new Date(r.created_at) >= startDate);
     }
+
     if (created_at_end) {
-      where.push(sql`created_at < (${created_at_end}::date + INTERVAL '1 day')`);
+      const endDate = new Date(created_at_end + 'T23:59:59');
+      requests = requests.filter(r => new Date(r.created_at) <= endDate);
     }
+
+    // Aplicar filtros de prazo
     if (deadline_start) {
-      where.push(sql`deadline >= ${deadline_start}`);
+      const startDate = new Date(deadline_start);
+      requests = requests.filter(r => r.deadline && new Date(r.deadline) >= startDate);
     }
+
     if (deadline_end) {
-      where.push(sql`deadline < (${deadline_end}::date + INTERVAL '1 day')`);
+      const endDate = new Date(deadline_end + 'T23:59:59');
+      requests = requests.filter(r => r.deadline && new Date(r.deadline) <= endDate);
     }
 
-    // Paginação (compatível com clientes atuais)
-    const limitParam = parseInt(params.limit, 10);
-    const pageParam = parseInt(params.page, 10);
-    const hasPagination = Number.isFinite(limitParam) || Number.isFinite(pageParam);
-
-    const pageSize = Number.isFinite(limitParam) ? Math.max(1, Math.min(200, limitParam)) : 50;
-    const page = Number.isFinite(pageParam) ? Math.max(1, pageParam) : 1;
-    let total = 0;
-    let responseBody;
-    if (hasPagination) {
-      const [{ total: totalCount }] = await sql`
-        SELECT COUNT(*)::int AS total
-        FROM material_requests
-        WHERE ${sql.join(where, sql` AND `)}
-      `;
-      total = totalCount;
-
-      const data = await sql`
-        SELECT 
-          id,
-          material_code,
-          material_description,
-          quantidade,
-          unidade,
-          requester_name,
-          urgencia,
-          status,
-          deadline,
-          justificativa,
-          created_at,
-          updated_at,
-          created_by
-        FROM material_requests
-        WHERE ${sql.join(where, sql` AND `)}
-        ORDER BY created_at DESC
-        LIMIT ${pageSize}
-        OFFSET ${(page - 1) * pageSize}
-      `;
-      responseBody = { data, total, page, pageSize };
-    } else {
-      const data = await sql`
-        SELECT 
-          id,
-          material_code,
-          material_description,
-          quantidade,
-          unidade,
-          requester_name,
-          urgencia,
-          status,
-          deadline,
-          justificativa,
-          created_at,
-          updated_at,
-          created_by
-        FROM material_requests
-        WHERE ${sql.join(where, sql` AND `)}
-        ORDER BY created_at DESC
-        LIMIT 500
-      `;
-      responseBody = data;
-      total = Array.isArray(data) ? data.length : 0;
-    }
-
-    console.log('Requests List - Resultado', { hasPagination, page, pageSize, total });
+    console.log('Requests List - Resultado', { count: requests.length });
 
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(responseBody)
+      body: JSON.stringify(requests)
     };
   } catch (error) {
     console.error('Requests List - Erro:', error);
