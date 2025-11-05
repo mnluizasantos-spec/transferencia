@@ -49,96 +49,73 @@ async function handleList(event, sql, user) {
     
     console.log('Filtros recebidos:', { page, limit, statusFilter, urgenciaFilter, searchFilter, created_at_start, created_at_end, deadline_start, deadline_end, idFilter });
     
-    // Construir query base usando template literals do Neon
-    // Começar com base query
-    let baseQuery = sql`
-      SELECT 
-        id,
-        material_code,
-        material_description,
-        quantidade,
-        unidade,
-        requester_name,
-        urgencia,
-        status,
-        deadline,
-        justificativa,
-        created_at,
-        updated_at,
-        created_by
-      FROM material_requests
-      WHERE deleted_at IS NULL
-    `;
+    // Preparar valores para data de fim (adicionar 23:59:59 se necessário)
+    const created_at_end_final = created_at_end ? (created_at_end.includes('T') ? created_at_end : `${created_at_end}T23:59:59`) : null;
+    const deadline_end_final = deadline_end ? (deadline_end.includes('T') ? deadline_end : `${deadline_end}T23:59:59`) : null;
+    const searchLower = searchFilter ? `%${searchFilter.toLowerCase()}%` : null;
     
-    // Aplicar filtros usando condições SQL seguras
+    // Construir query usando template literals simples do Neon
+    // Usar apenas valores diretos, sem aninhar fragmentos SQL
+    let finalQuery;
+    let countQuery;
+    
     if (idFilter) {
-      baseQuery = sql`${baseQuery} AND id = ${idFilter}`;
-    }
-    
-    if (statusFilter) {
-      baseQuery = sql`${baseQuery} AND status = ${statusFilter}`;
-    }
-    
-    if (urgenciaFilter) {
-      baseQuery = sql`${baseQuery} AND urgencia = ${urgenciaFilter}`;
-    }
-    
-    if (searchFilter) {
-      const searchLower = `%${searchFilter.toLowerCase()}%`;
-      baseQuery = sql`
-        ${baseQuery} AND (
-          LOWER(material_description) LIKE ${searchLower} OR
-          LOWER(material_code) LIKE ${searchLower} OR
-          LOWER(requester_name) LIKE ${searchLower}
-        )
+      finalQuery = sql`
+        SELECT 
+          id, material_code, material_description, quantidade, unidade,
+          requester_name, urgencia, status, deadline, justificativa,
+          created_at, updated_at, created_by
+        FROM material_requests
+        WHERE deleted_at IS NULL AND id = ${idFilter}
+        ORDER BY created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      countQuery = sql`
+        SELECT COUNT(*) as total
+        FROM material_requests
+        WHERE deleted_at IS NULL AND id = ${idFilter}
+      `;
+    } else {
+      // Construir query com múltiplos filtros usando condicionais
+      finalQuery = sql`
+        SELECT 
+          id, material_code, material_description, quantidade, unidade,
+          requester_name, urgencia, status, deadline, justificativa,
+          created_at, updated_at, created_by
+        FROM material_requests
+        WHERE deleted_at IS NULL
+          ${statusFilter ? sql`AND status = ${statusFilter}` : sql``}
+          ${urgenciaFilter ? sql`AND urgencia = ${urgenciaFilter}` : sql``}
+          ${searchFilter ? sql`AND (
+            LOWER(material_description) LIKE ${searchLower} OR
+            LOWER(material_code) LIKE ${searchLower} OR
+            LOWER(requester_name) LIKE ${searchLower}
+          )` : sql``}
+          ${created_at_start ? sql`AND created_at >= ${created_at_start}` : sql``}
+          ${created_at_end ? sql`AND created_at <= ${created_at_end_final}` : sql``}
+          ${deadline_start ? sql`AND deadline >= ${deadline_start}` : sql``}
+          ${deadline_end ? sql`AND deadline <= ${deadline_end_final}` : sql``}
+        ORDER BY created_at DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      
+      countQuery = sql`
+        SELECT COUNT(*) as total
+        FROM material_requests
+        WHERE deleted_at IS NULL
+          ${statusFilter ? sql`AND status = ${statusFilter}` : sql``}
+          ${urgenciaFilter ? sql`AND urgencia = ${urgenciaFilter}` : sql``}
+          ${searchFilter ? sql`AND (
+            LOWER(material_description) LIKE ${searchLower} OR
+            LOWER(material_code) LIKE ${searchLower} OR
+            LOWER(requester_name) LIKE ${searchLower}
+          )` : sql``}
+          ${created_at_start ? sql`AND created_at >= ${created_at_start}` : sql``}
+          ${created_at_end ? sql`AND created_at <= ${created_at_end_final}` : sql``}
+          ${deadline_start ? sql`AND deadline >= ${deadline_start}` : sql``}
+          ${deadline_end ? sql`AND deadline <= ${deadline_end_final}` : sql``}
       `;
     }
-    
-    if (created_at_start) {
-      baseQuery = sql`${baseQuery} AND created_at >= ${created_at_start}`;
-    }
-    
-    if (created_at_end) {
-      // Adicionar 23:59:59 ao final do dia se não tiver horário
-      const endDate = created_at_end.includes('T') ? created_at_end : `${created_at_end}T23:59:59`;
-      baseQuery = sql`${baseQuery} AND created_at <= ${endDate}`;
-    }
-    
-    if (deadline_start) {
-      baseQuery = sql`${baseQuery} AND deadline >= ${deadline_start}`;
-    }
-    
-    if (deadline_end) {
-      // Adicionar 23:59:59 ao final do dia se não tiver horário
-      const endDate = deadline_end.includes('T') ? deadline_end : `${deadline_end}T23:59:59`;
-      baseQuery = sql`${baseQuery} AND deadline <= ${endDate}`;
-    }
-    
-    // Adicionar ORDER BY, LIMIT e OFFSET
-    const finalQuery = sql`
-      ${baseQuery}
-      ORDER BY created_at DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `;
-    
-    // Query para contar total (mesma WHERE, sem LIMIT/OFFSET)
-    const countQuery = sql`
-      SELECT COUNT(*) as total
-      FROM material_requests
-      WHERE deleted_at IS NULL
-        ${idFilter ? sql`AND id = ${idFilter}` : sql``}
-        ${statusFilter ? sql`AND status = ${statusFilter}` : sql``}
-        ${urgenciaFilter ? sql`AND urgencia = ${urgenciaFilter}` : sql``}
-        ${searchFilter ? sql`AND (
-          LOWER(material_description) LIKE ${`%${searchFilter.toLowerCase()}%`} OR
-          LOWER(material_code) LIKE ${`%${searchFilter.toLowerCase()}%`} OR
-          LOWER(requester_name) LIKE ${`%${searchFilter.toLowerCase()}%`}
-        )` : sql``}
-        ${created_at_start ? sql`AND created_at >= ${created_at_start}` : sql``}
-        ${created_at_end ? sql`AND created_at <= ${created_at_end.includes('T') ? created_at_end : `${created_at_end}T23:59:59`}` : sql``}
-        ${deadline_start ? sql`AND deadline >= ${deadline_start}` : sql``}
-        ${deadline_end ? sql`AND deadline <= ${deadline_end.includes('T') ? deadline_end : `${deadline_end}T23:59:59`}` : sql``}
-    `;
     
     // Executar queries em paralelo
     const [countResult, requests] = await Promise.all([
