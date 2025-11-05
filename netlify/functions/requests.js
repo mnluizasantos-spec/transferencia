@@ -54,76 +54,64 @@ async function handleList(event, sql, user) {
     const deadline_end_final = deadline_end ? (deadline_end.includes('T') ? deadline_end : `${deadline_end}T23:59:59`) : null;
     const searchLower = searchFilter ? `%${searchFilter.toLowerCase()}%` : null;
     
-    // Construir query usando template literals simples do Neon
-    // Usar apenas valores diretos, sem aninhar fragmentos SQL
-    let finalQuery;
-    let countQuery;
+    // Construir query base usando template literals do Neon
+    // Usar filtros JavaScript para evitar problemas com fragmentos SQL vazios
+    // Buscar todos os registros e filtrar em JavaScript (temporário até resolver SQL dinâmico)
     
+    // Buscar todos os registros (com limite maior para permitir filtros client-side)
+    let allRequests = await sql`
+      SELECT 
+        id, material_code, material_description, quantidade, unidade,
+        requester_name, urgencia, status, deadline, justificativa,
+        created_at, updated_at, created_by
+      FROM material_requests
+      WHERE deleted_at IS NULL
+      ORDER BY created_at DESC
+      LIMIT 2000
+    `;
+    
+    // Aplicar filtros em JavaScript
     if (idFilter) {
-      finalQuery = sql`
-        SELECT 
-          id, material_code, material_description, quantidade, unidade,
-          requester_name, urgencia, status, deadline, justificativa,
-          created_at, updated_at, created_by
-        FROM material_requests
-        WHERE deleted_at IS NULL AND id = ${idFilter}
-        ORDER BY created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `;
-      countQuery = sql`
-        SELECT COUNT(*) as total
-        FROM material_requests
-        WHERE deleted_at IS NULL AND id = ${idFilter}
-      `;
-    } else {
-      // Construir query com múltiplos filtros usando condicionais
-      finalQuery = sql`
-        SELECT 
-          id, material_code, material_description, quantidade, unidade,
-          requester_name, urgencia, status, deadline, justificativa,
-          created_at, updated_at, created_by
-        FROM material_requests
-        WHERE deleted_at IS NULL
-          ${statusFilter ? sql`AND status = ${statusFilter}` : sql``}
-          ${urgenciaFilter ? sql`AND urgencia = ${urgenciaFilter}` : sql``}
-          ${searchFilter ? sql`AND (
-            LOWER(material_description) LIKE ${searchLower} OR
-            LOWER(material_code) LIKE ${searchLower} OR
-            LOWER(requester_name) LIKE ${searchLower}
-          )` : sql``}
-          ${created_at_start ? sql`AND created_at >= ${created_at_start}` : sql``}
-          ${created_at_end ? sql`AND created_at <= ${created_at_end_final}` : sql``}
-          ${deadline_start ? sql`AND deadline >= ${deadline_start}` : sql``}
-          ${deadline_end ? sql`AND deadline <= ${deadline_end_final}` : sql``}
-        ORDER BY created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `;
-      
-      countQuery = sql`
-        SELECT COUNT(*) as total
-        FROM material_requests
-        WHERE deleted_at IS NULL
-          ${statusFilter ? sql`AND status = ${statusFilter}` : sql``}
-          ${urgenciaFilter ? sql`AND urgencia = ${urgenciaFilter}` : sql``}
-          ${searchFilter ? sql`AND (
-            LOWER(material_description) LIKE ${searchLower} OR
-            LOWER(material_code) LIKE ${searchLower} OR
-            LOWER(requester_name) LIKE ${searchLower}
-          )` : sql``}
-          ${created_at_start ? sql`AND created_at >= ${created_at_start}` : sql``}
-          ${created_at_end ? sql`AND created_at <= ${created_at_end_final}` : sql``}
-          ${deadline_start ? sql`AND deadline >= ${deadline_start}` : sql``}
-          ${deadline_end ? sql`AND deadline <= ${deadline_end_final}` : sql``}
-      `;
+      allRequests = allRequests.filter(r => r.id === idFilter);
+    }
+    if (statusFilter) {
+      allRequests = allRequests.filter(r => r.status === statusFilter);
+    }
+    if (urgenciaFilter) {
+      allRequests = allRequests.filter(r => r.urgencia === urgenciaFilter);
+    }
+    if (searchFilter) {
+      const search = searchFilter.toLowerCase();
+      allRequests = allRequests.filter(r => 
+        (r.material_description && r.material_description.toLowerCase().includes(search)) ||
+        (r.material_code && r.material_code.toLowerCase().includes(search)) ||
+        (r.requester_name && r.requester_name.toLowerCase().includes(search))
+      );
+    }
+    if (created_at_start) {
+      const startDate = new Date(created_at_start);
+      allRequests = allRequests.filter(r => new Date(r.created_at) >= startDate);
+    }
+    if (created_at_end) {
+      const endDate = new Date(created_at_end_final);
+      allRequests = allRequests.filter(r => new Date(r.created_at) <= endDate);
+    }
+    if (deadline_start) {
+      const startDate = new Date(deadline_start);
+      allRequests = allRequests.filter(r => r.deadline && new Date(r.deadline) >= startDate);
+    }
+    if (deadline_end) {
+      const endDate = new Date(deadline_end_final);
+      allRequests = allRequests.filter(r => r.deadline && new Date(r.deadline) <= endDate);
     }
     
-    // Executar queries em paralelo
-    const [countResult, requests] = await Promise.all([
-      countQuery,
-      finalQuery
-    ]);
+    // Calcular total antes de aplicar paginação
+    const total = allRequests.length;
     
-    const total = parseInt(countResult[0].total);
+    // Aplicar paginação
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const requests = allRequests.slice(startIndex, endIndex);
     
     console.log('Requests List - Resultado', { count: requests.length, total, page, limit });
     
