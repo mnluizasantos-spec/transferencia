@@ -150,8 +150,8 @@
                 Página 1 de 1 (0 itens)
             </div>
             <div style="display: flex; gap: 5px;">
-                <button id="prev-page-btn" class="btn btn-secondary btn-small" onclick="goToPage(currentPage - 1)" disabled>← Anterior</button>
-                <button id="next-page-btn" class="btn btn-secondary btn-small" onclick="goToPage(currentPage + 1)" disabled>Próxima →</button>
+                <button id="prev-page-btn" class="btn btn-secondary btn-small" disabled>← Anterior</button>
+                <button id="next-page-btn" class="btn btn-secondary btn-small" disabled>Próxima →</button>
             </div>
         </div>
 
@@ -512,6 +512,28 @@
             const pageSizeSelect = document.getElementById('page-size-select');
             if (pageSizeSelect) {
                 pageSizeSelect.addEventListener('change', (e) => changePageSize(e.target.value));
+            }
+            
+            // Listeners para botões de paginação
+            const prevBtn = document.getElementById('prev-page-btn');
+            const nextBtn = document.getElementById('next-page-btn');
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    const totalPages = Math.ceil(total / pageSize);
+                    if (currentPage > 1) {
+                        currentPage = currentPage - 1;
+                        loadRequests();
+                    }
+                });
+            }
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    const totalPages = Math.ceil(total / pageSize);
+                    if (currentPage < totalPages && totalPages > 0) {
+                        currentPage = currentPage + 1;
+                        loadRequests();
+                    }
+                });
             }
 
             // Fechar modais ao clicar fora
