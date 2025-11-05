@@ -134,6 +134,27 @@
             <button class="btn btn-success btn-small" onclick="exportSelectedToExcel()" style="margin-left: 10px;">📥 Exportar Excel</button>
         </div>
 
+        <!-- Pagination Controls -->
+        <div id="pagination-controls" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 10px; background: var(--card-bg); border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <label for="page-size-select" style="font-size: 14px;">Itens por página:</label>
+                <select id="page-size-select" style="padding: 5px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); color: var(--text);">
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                    <option value="500">500</option>
+                    <option value="1000">1000</option>
+                    <option value="2000">2000</option>
+                </select>
+            </div>
+            <div id="pagination-info" style="font-size: 14px; color: var(--text-secondary);">
+                Página 1 de 1 (0 itens)
+            </div>
+            <div style="display: flex; gap: 5px;">
+                <button id="prev-page-btn" class="btn btn-secondary btn-small" onclick="goToPage(currentPage - 1)" disabled>← Anterior</button>
+                <button id="next-page-btn" class="btn btn-secondary btn-small" onclick="goToPage(currentPage + 1)" disabled>Próxima →</button>
+            </div>
+        </div>
+
         <!-- Table -->
         <div class="table-container">
             <table>
@@ -416,6 +437,11 @@
         let currentRequests = [];
         let selectedIds = new Set();
         let editingRequestId = null;
+        
+        // Paginação
+        let currentPage = 1;
+        let pageSize = 100;
+        let total = 0;
 
         // Inicialização
         document.addEventListener('DOMContentLoaded', () => {
@@ -471,15 +497,22 @@
         }
 
         function setupEventListeners() {
-            document.getElementById('search-input').addEventListener('input', debounce(loadRequests, 300));
-            document.getElementById('filter-id').addEventListener('input', debounce(loadRequests, 300));
-            document.getElementById('filter-status').addEventListener('change', loadRequests);
-            document.getElementById('filter-urgencia').addEventListener('change', loadRequests);
-            document.getElementById('filter-data-solicitacao-inicio').addEventListener('change', loadRequests);
-            document.getElementById('filter-data-solicitacao-fim').addEventListener('change', loadRequests);
-            document.getElementById('filter-prazo-inicio').addEventListener('change', loadRequests);
-            document.getElementById('filter-prazo-fim').addEventListener('change', loadRequests);
+            // Resetar página quando filtros mudam
+            document.getElementById('search-input').addEventListener('input', debounce(() => loadRequests(true), 300));
+            document.getElementById('filter-id').addEventListener('input', debounce(() => loadRequests(true), 300));
+            document.getElementById('filter-status').addEventListener('change', () => loadRequests(true));
+            document.getElementById('filter-urgencia').addEventListener('change', () => loadRequests(true));
+            document.getElementById('filter-data-solicitacao-inicio').addEventListener('change', debounce(() => loadRequests(true), 400));
+            document.getElementById('filter-data-solicitacao-fim').addEventListener('change', debounce(() => loadRequests(true), 400));
+            document.getElementById('filter-prazo-inicio').addEventListener('change', debounce(() => loadRequests(true), 400));
+            document.getElementById('filter-prazo-fim').addEventListener('change', debounce(() => loadRequests(true), 400));
             document.getElementById('select-all').addEventListener('change', handleSelectAll);
+            
+            // Listener para mudança de tamanho de página
+            const pageSizeSelect = document.getElementById('page-size-select');
+            if (pageSizeSelect) {
+                pageSizeSelect.addEventListener('change', (e) => changePageSize(e.target.value));
+            }
 
             // Fechar modais ao clicar fora
             document.getElementById('request-modal').addEventListener('click', (e) => {
@@ -510,7 +543,12 @@
             }
         }
 
-        async function loadRequests() {
+        async function loadRequests(resetPage = false) {
+            // Resetar página se necessário (quando filtros mudam)
+            if (resetPage) {
+                currentPage = 1;
+            }
+            
             const search = document.getElementById('search-input').value;
             const filterId = document.getElementById('filter-id').value;
             const status = document.getElementById('filter-status').value;
@@ -520,7 +558,10 @@
             const prazoInicio = document.getElementById('filter-prazo-inicio').value;
             const prazoFim = document.getElementById('filter-prazo-fim').value;
 
-            const filters = {};
+            const filters = {
+                page: currentPage,
+                limit: pageSize
+            };
             if (search) filters.search = search;
             if (filterId) filters.id = filterId;
             if (status) filters.status = status;
@@ -531,12 +572,31 @@
             if (prazoFim) filters.deadline_end = prazoFim;
 
             try {
-                currentRequests = await getRequests(filters);
+                const response = await getRequests(filters);
+                
+                // Verificar se é a nova estrutura (com paginação) ou antiga (array direto)
+                if (response && typeof response === 'object' && 'data' in response) {
+                    // Nova estrutura com paginação
+                    currentRequests = response.data || [];
+                    total = response.total || 0;
+                    currentPage = response.page || 1;
+                    pageSize = response.pageSize || 100;
+                } else {
+                    // Estrutura antiga (array direto) - compatibilidade
+                    currentRequests = Array.isArray(response) ? response : [];
+                    total = currentRequests.length;
+                }
+                
                 renderRequests();
+                updatePaginationControls();
             } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.log('Requisição cancelada');
+                    return;
+                }
                 console.error('Erro ao carregar solicitações:', error);
                 document.getElementById('requests-tbody').innerHTML = `
-                    <tr><td colspan="12" style="text-align: center; color: var(--danger);">
+                    <tr><td colspan="13" style="text-align: center; color: var(--danger);">
                         Erro ao carregar solicitações: ${error.message}
                     </td></tr>
                 `;
@@ -707,6 +767,43 @@
             });
         }
 
+        function updatePaginationControls() {
+            const totalPages = Math.ceil(total / pageSize);
+            const paginationInfo = document.getElementById('pagination-info');
+            const prevBtn = document.getElementById('prev-page-btn');
+            const nextBtn = document.getElementById('next-page-btn');
+            const pageSizeSelect = document.getElementById('page-size-select');
+            
+            if (paginationInfo) {
+                paginationInfo.textContent = `Página ${currentPage} de ${totalPages || 1} (${total.toLocaleString('pt-BR')} itens)`;
+            }
+            
+            if (prevBtn) {
+                prevBtn.disabled = currentPage <= 1;
+            }
+            
+            if (nextBtn) {
+                nextBtn.disabled = currentPage >= totalPages || totalPages === 0;
+            }
+            
+            if (pageSizeSelect) {
+                pageSizeSelect.value = pageSize.toString();
+            }
+        }
+        
+        function goToPage(page) {
+            const totalPages = Math.ceil(total / pageSize);
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            loadRequests();
+        }
+        
+        function changePageSize(newSize) {
+            pageSize = parseInt(newSize);
+            currentPage = 1;
+            loadRequests();
+        }
+
         function limparFiltros() {
             document.getElementById('search-input').value = '';
             document.getElementById('filter-id').value = '';
@@ -716,6 +813,7 @@
             document.getElementById('filter-data-solicitacao-fim').value = '';
             document.getElementById('filter-prazo-inicio').value = '';
             document.getElementById('filter-prazo-fim').value = '';
+            currentPage = 1;
             loadDashboard();  // Recarregar totais do backend
             loadRequests();
         }
@@ -1023,6 +1121,11 @@
             document.getElementById('filter-status').value = '';
             document.getElementById('filter-urgencia').value = '';
             document.getElementById('search-input').value = '';
+            document.getElementById('filter-data-solicitacao-inicio').value = '';
+            document.getElementById('filter-data-solicitacao-fim').value = '';
+            document.getElementById('filter-prazo-inicio').value = '';
+            document.getElementById('filter-prazo-fim').value = '';
+            currentPage = 1;
             
             // Recarregar todas as solicitações
             await loadRequests();
@@ -1033,21 +1136,20 @@
             document.getElementById('filter-status').value = '';
             document.getElementById('filter-urgencia').value = '';
             document.getElementById('search-input').value = '';
+            document.getElementById('filter-data-solicitacao-inicio').value = '';
+            document.getElementById('filter-data-solicitacao-fim').value = '';
             
-            // Recarregar todas as solicitações
-            await loadRequests();
+            // Filtrar solicitações atrasadas (deadline < hoje)
+            // Usar data de ontem como deadline_end para pegar apenas os atrasados
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            yesterday.setHours(23, 59, 59, 0);
+            const yesterdayStr = yesterday.toISOString().split('T')[0];
+            document.getElementById('filter-prazo-inicio').value = '';
+            document.getElementById('filter-prazo-fim').value = yesterdayStr;
             
-            // Filtrar solicitações atrasadas
-            const today = new Date();
-            const todayStr = today.toISOString().split('T')[0]; // yyyy-mm-dd
-            
-            currentRequests = currentRequests.filter(req => {
-                if (!req.deadline || req.status === 'Concluído' || req.status === 'Cancelado' || req.status === 'Recusado') return false;
-                const deadlineStr = req.deadline.split('T')[0]; // yyyy-mm-dd
-                return deadlineStr < todayStr;
-            });
-            
-            renderRequests();
+            currentPage = 1;
+            await loadRequests(true);
         };
 
         window.filterByDueToday = async function() {
@@ -1055,28 +1157,31 @@
             document.getElementById('filter-status').value = '';
             document.getElementById('filter-urgencia').value = '';
             document.getElementById('search-input').value = '';
+            document.getElementById('filter-data-solicitacao-inicio').value = '';
+            document.getElementById('filter-data-solicitacao-fim').value = '';
             
-            // Recarregar todas as solicitações
-            await loadRequests();
-            
-            // Filtrar solicitações que vencem hoje
+            // Filtrar solicitações que vencem hoje (deadline = hoje)
             const today = new Date();
-            const todayStr = today.toISOString().split('T')[0]; // yyyy-mm-dd
+            today.setHours(0, 0, 0, 0);
+            const todayStr = today.toISOString().split('T')[0];
+            document.getElementById('filter-prazo-inicio').value = todayStr;
+            document.getElementById('filter-prazo-fim').value = todayStr;
             
-            currentRequests = currentRequests.filter(req => {
-                if (!req.deadline || req.status === 'Concluído' || req.status === 'Cancelado' || req.status === 'Recusado') return false;
-                const deadlineStr = req.deadline.split('T')[0]; // yyyy-mm-dd
-                return deadlineStr === todayStr;
-            });
-            
-            renderRequests();
+            currentPage = 1;
+            await loadRequests(true);
         };
 
         window.filterByCompleted = function() {
             document.getElementById('filter-id').value = '';
             document.getElementById('filter-status').value = 'Concluído';
             document.getElementById('filter-urgencia').value = '';
-            loadRequests();
+            document.getElementById('search-input').value = '';
+            document.getElementById('filter-data-solicitacao-inicio').value = '';
+            document.getElementById('filter-data-solicitacao-fim').value = '';
+            document.getElementById('filter-prazo-inicio').value = '';
+            document.getElementById('filter-prazo-fim').value = '';
+            currentPage = 1;
+            loadRequests(true);
         };
 
         // Função cancelar para solicitante

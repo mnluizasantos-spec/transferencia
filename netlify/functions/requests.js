@@ -23,14 +23,21 @@ async function logHistory(sql, requestId, userId, campo, valorAnterior, valorNov
 
 /**
  * GET /api/requests
- * Lista solicitações com filtros
+ * Lista solicitações com filtros e paginação server-side
  */
 async function handleList(event, sql, user) {
   try {
     console.log('Requests List - Iniciando', { userRole: user.role, userName: user.name });
     
-    // Obter filtros da query string
+    // Obter parâmetros da query string
     const params = event.queryStringParameters || {};
+    
+    // Paginação
+    const page = Math.max(1, parseInt(params.page) || 1);
+    const limit = Math.min(2000, Math.max(1, parseInt(params.limit) || 100));
+    const offset = (page - 1) * limit;
+    
+    // Filtros
     const statusFilter = params.status;
     const urgenciaFilter = params.urgencia;
     const searchFilter = params.search;
@@ -38,12 +45,13 @@ async function handleList(event, sql, user) {
     const created_at_end = params.created_at_end;
     const deadline_start = params.deadline_start;
     const deadline_end = params.deadline_end;
-    const idFilter = params.id;
+    const idFilter = params.id ? parseInt(params.id) : null;
     
-    console.log('Filtros recebidos:', { statusFilter, urgenciaFilter, searchFilter, created_at_start, created_at_end, deadline_start, deadline_end, idFilter });
+    console.log('Filtros recebidos:', { page, limit, statusFilter, urgenciaFilter, searchFilter, created_at_start, created_at_end, deadline_start, deadline_end, idFilter });
     
-    // Buscar todas as solicitações (aumentado LIMIT)
-    let requests = await sql`
+    // Construir query base usando template literals do Neon
+    // Começar com base query
+    let baseQuery = sql`
       SELECT 
         id,
         material_code,
@@ -60,60 +68,97 @@ async function handleList(event, sql, user) {
         created_by
       FROM material_requests
       WHERE deleted_at IS NULL
-      ORDER BY created_at DESC
-      LIMIT 500
     `;
-
-    // Aplicar filtros em JavaScript (como antes)
+    
+    // Aplicar filtros usando condições SQL seguras
     if (idFilter) {
-      requests = requests.filter(r => r.id === parseInt(idFilter));
+      baseQuery = sql`${baseQuery} AND id = ${idFilter}`;
     }
-
+    
     if (statusFilter) {
-      requests = requests.filter(r => r.status === statusFilter);
+      baseQuery = sql`${baseQuery} AND status = ${statusFilter}`;
     }
-
+    
     if (urgenciaFilter) {
-      requests = requests.filter(r => r.urgencia === urgenciaFilter);
+      baseQuery = sql`${baseQuery} AND urgencia = ${urgenciaFilter}`;
     }
-
+    
     if (searchFilter) {
-      const search = searchFilter.toLowerCase();
-      requests = requests.filter(r => 
-        (r.material_description && r.material_description.toLowerCase().includes(search)) ||
-        (r.material_code && r.material_code.toLowerCase().includes(search)) ||
-        (r.requester_name && r.requester_name.toLowerCase().includes(search))
-      );
+      const searchLower = `%${searchFilter.toLowerCase()}%`;
+      baseQuery = sql`
+        ${baseQuery} AND (
+          LOWER(material_description) LIKE ${searchLower} OR
+          LOWER(material_code) LIKE ${searchLower} OR
+          LOWER(requester_name) LIKE ${searchLower}
+        )
+      `;
     }
-
-    // Aplicar filtros de data de solicitação
+    
     if (created_at_start) {
-      const startDate = new Date(created_at_start);
-      requests = requests.filter(r => new Date(r.created_at) >= startDate);
+      baseQuery = sql`${baseQuery} AND created_at >= ${created_at_start}`;
     }
-
+    
     if (created_at_end) {
-      const endDate = new Date(created_at_end + 'T23:59:59');
-      requests = requests.filter(r => new Date(r.created_at) <= endDate);
+      // Adicionar 23:59:59 ao final do dia se não tiver horário
+      const endDate = created_at_end.includes('T') ? created_at_end : `${created_at_end}T23:59:59`;
+      baseQuery = sql`${baseQuery} AND created_at <= ${endDate}`;
     }
-
-    // Aplicar filtros de prazo
+    
     if (deadline_start) {
-      const startDate = new Date(deadline_start);
-      requests = requests.filter(r => r.deadline && new Date(r.deadline) >= startDate);
+      baseQuery = sql`${baseQuery} AND deadline >= ${deadline_start}`;
     }
-
+    
     if (deadline_end) {
-      const endDate = new Date(deadline_end + 'T23:59:59');
-      requests = requests.filter(r => r.deadline && new Date(r.deadline) <= endDate);
+      // Adicionar 23:59:59 ao final do dia se não tiver horário
+      const endDate = deadline_end.includes('T') ? deadline_end : `${deadline_end}T23:59:59`;
+      baseQuery = sql`${baseQuery} AND deadline <= ${endDate}`;
     }
-
-    console.log('Requests List - Resultado', { count: requests.length });
-
+    
+    // Adicionar ORDER BY, LIMIT e OFFSET
+    const finalQuery = sql`
+      ${baseQuery}
+      ORDER BY created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `;
+    
+    // Query para contar total (mesma WHERE, sem LIMIT/OFFSET)
+    const countQuery = sql`
+      SELECT COUNT(*) as total
+      FROM material_requests
+      WHERE deleted_at IS NULL
+        ${idFilter ? sql`AND id = ${idFilter}` : sql``}
+        ${statusFilter ? sql`AND status = ${statusFilter}` : sql``}
+        ${urgenciaFilter ? sql`AND urgencia = ${urgenciaFilter}` : sql``}
+        ${searchFilter ? sql`AND (
+          LOWER(material_description) LIKE ${`%${searchFilter.toLowerCase()}%`} OR
+          LOWER(material_code) LIKE ${`%${searchFilter.toLowerCase()}%`} OR
+          LOWER(requester_name) LIKE ${`%${searchFilter.toLowerCase()}%`}
+        )` : sql``}
+        ${created_at_start ? sql`AND created_at >= ${created_at_start}` : sql``}
+        ${created_at_end ? sql`AND created_at <= ${created_at_end.includes('T') ? created_at_end : `${created_at_end}T23:59:59`}` : sql``}
+        ${deadline_start ? sql`AND deadline >= ${deadline_start}` : sql``}
+        ${deadline_end ? sql`AND deadline <= ${deadline_end.includes('T') ? deadline_end : `${deadline_end}T23:59:59`}` : sql``}
+    `;
+    
+    // Executar queries em paralelo
+    const [countResult, requests] = await Promise.all([
+      countQuery,
+      finalQuery
+    ]);
+    
+    const total = parseInt(countResult[0].total);
+    
+    console.log('Requests List - Resultado', { count: requests.length, total, page, limit });
+    
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requests)
+      body: JSON.stringify({
+        data: requests,
+        total,
+        page,
+        pageSize: limit
+      })
     };
   } catch (error) {
     console.error('Requests List - Erro:', error);

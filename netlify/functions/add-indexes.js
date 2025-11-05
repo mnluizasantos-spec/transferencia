@@ -8,71 +8,96 @@ const { withErrorHandling } = require('./utils/errorHandler');
 const { verifyToken, requireRole } = require('./utils/middleware');
 
 async function handleAddIndexes(event, sql, user) {
-  console.log('🔧 Adicionando índices ao banco de dados...');
+  console.log('🔧 Adicionando índices compostos ao banco de dados...');
   
   const indexes = [];
+  const errors = [];
   
   try {
-    // Índice 1: deleted_at (usado em TODAS as queries)
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_material_requests_deleted_at 
-      ON material_requests(deleted_at)
-    `;
-    indexes.push('idx_material_requests_deleted_at');
-    console.log('✅ Índice deleted_at criado');
+    // Índice composto 1: (deleted_at, status, created_at DESC) - usado em listagem com filtro de status
+    try {
+      await sql`
+        CREATE INDEX IF NOT EXISTS idx_material_requests_deleted_status_created 
+        ON material_requests(deleted_at, status, created_at DESC)
+        WHERE deleted_at IS NULL
+      `;
+      indexes.push('idx_material_requests_deleted_status_created');
+      console.log('✅ Índice composto (deleted_at, status, created_at DESC) criado');
+    } catch (e) {
+      errors.push(`idx_material_requests_deleted_status_created: ${e.message}`);
+      console.error('❌ Erro ao criar índice deleted_status_created:', e.message);
+    }
     
-    // Índice 2: created_at para ordenação DESC
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_material_requests_created_at 
-      ON material_requests(created_at DESC)
-    `;
-    indexes.push('idx_material_requests_created_at');
-    console.log('✅ Índice created_at criado');
+    // Índice composto 2: (deleted_at, deadline, status) - usado em filtros de prazo e status
+    try {
+      await sql`
+        CREATE INDEX IF NOT EXISTS idx_material_requests_deleted_deadline_status 
+        ON material_requests(deleted_at, deadline, status)
+        WHERE deleted_at IS NULL
+      `;
+      indexes.push('idx_material_requests_deleted_deadline_status');
+      console.log('✅ Índice composto (deleted_at, deadline, status) criado');
+    } catch (e) {
+      errors.push(`idx_material_requests_deleted_deadline_status: ${e.message}`);
+      console.error('❌ Erro ao criar índice deleted_deadline_status:', e.message);
+    }
     
-    // Índice 3: deadline para filtros de prazo
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_material_requests_deadline 
-      ON material_requests(deadline)
-    `;
-    indexes.push('idx_material_requests_deadline');
-    console.log('✅ Índice deadline criado');
+    // Índice composto 3: (deleted_at, created_by, created_at DESC) - usado em filtros por criador
+    try {
+      await sql`
+        CREATE INDEX IF NOT EXISTS idx_material_requests_deleted_created_by_created 
+        ON material_requests(deleted_at, created_by, created_at DESC)
+        WHERE deleted_at IS NULL
+      `;
+      indexes.push('idx_material_requests_deleted_created_by_created');
+      console.log('✅ Índice composto (deleted_at, created_by, created_at DESC) criado');
+    } catch (e) {
+      errors.push(`idx_material_requests_deleted_created_by_created: ${e.message}`);
+      console.error('❌ Erro ao criar índice deleted_created_by_created:', e.message);
+    }
     
-    // Índice 4: status para filtros
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_material_requests_status 
-      ON material_requests(status)
-    `;
-    indexes.push('idx_material_requests_status');
-    console.log('✅ Índice status criado');
+    // Índice composto 4: (deleted_at, urgencia, created_at DESC) - usado em filtros de urgência
+    try {
+      await sql`
+        CREATE INDEX IF NOT EXISTS idx_material_requests_deleted_urgencia_created 
+        ON material_requests(deleted_at, urgencia, created_at DESC)
+        WHERE deleted_at IS NULL
+      `;
+      indexes.push('idx_material_requests_deleted_urgencia_created');
+      console.log('✅ Índice composto (deleted_at, urgencia, created_at DESC) criado');
+    } catch (e) {
+      errors.push(`idx_material_requests_deleted_urgencia_created: ${e.message}`);
+      console.error('❌ Erro ao criar índice deleted_urgencia_created:', e.message);
+    }
     
-    // Índice 5: urgencia
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_material_requests_urgencia 
-      ON material_requests(urgencia)
-    `;
-    indexes.push('idx_material_requests_urgencia');
-    console.log('✅ Índice urgencia criado');
+    // Índice composto 5: (deleted_at, created_at DESC) - query base mais comum
+    try {
+      await sql`
+        CREATE INDEX IF NOT EXISTS idx_material_requests_deleted_created 
+        ON material_requests(deleted_at, created_at DESC)
+        WHERE deleted_at IS NULL
+      `;
+      indexes.push('idx_material_requests_deleted_created');
+      console.log('✅ Índice composto (deleted_at, created_at DESC) criado');
+    } catch (e) {
+      errors.push(`idx_material_requests_deleted_created: ${e.message}`);
+      console.error('❌ Erro ao criar índice deleted_created:', e.message);
+    }
     
-    // Índice 6: COMPOSTO - deleted_at + created_at (query mais comum)
-    await sql`
-      CREATE INDEX IF NOT EXISTS idx_material_requests_deleted_created 
-      ON material_requests(deleted_at, created_at DESC)
-      WHERE deleted_at IS NULL
-    `;
-    indexes.push('idx_material_requests_deleted_created');
-    console.log('✅ Índice composto deleted_at + created_at criado');
-    
-    console.log('✅ Todos os índices criados com sucesso:', indexes);
+    console.log(`✅ ${indexes.length} índices compostos criados com sucesso`);
+    if (errors.length > 0) {
+      console.warn(`⚠️ ${errors.length} erros ao criar índices:`, errors);
+    }
     
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         success: true,
-        message: `${indexes.length} índices criados com sucesso`,
+        message: `${indexes.length} índices compostos criados com sucesso`,
         indexes: indexes,
-        timestamp: new Date().toISOString(),
-        performance_improvement: 'Queries devem ser 1000x mais rápidas agora'
+        errors: errors.length > 0 ? errors : undefined,
+        timestamp: new Date().toISOString()
       })
     };
   } catch (error) {
@@ -82,8 +107,8 @@ async function handleAddIndexes(event, sql, user) {
 }
 
 exports.handler = withErrorHandling(async (event) => {
-  const sql = await getDB();
-  const user = await verifyToken(event);
+  const sql = getDB();
+  const user = await verifyToken(event, sql);
   requireRole(user, ['admin']);
 
   return await handleAddIndexes(event, sql, user);
