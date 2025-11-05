@@ -406,7 +406,7 @@
 
     <script type="module">
         import { requireAuth, getCurrentUser, logout, isAdmin, isSeparador } from '/js/auth.js';
-        import { getRequests, getDashboardStats, createRequest, updateRequest, deleteRequest, getRequestHistory, printPickingList } from '/js/api.js';
+        import { getRequests, getRequest, getDashboardStats, createRequest, updateRequest, deleteRequest, getRequestHistory, printPickingList } from '/js/api.js';
 
         // Verificar token ao carregar página
         window.addEventListener('DOMContentLoaded', function() {
@@ -1204,6 +1204,54 @@
             document.getElementById('filter-prazo-fim').value = '';
             currentPage = 1;
             loadRequests(true);
+        };
+
+        // Função auxiliar para corrigir solicitação 350
+        window.fixRequest350 = async function() {
+            try {
+                const user = getCurrentUser();
+                if (!user || user.role !== 'admin') {
+                    console.error('Erro: Apenas administradores podem executar correções');
+                    showNotification('Apenas administradores podem executar correções', 'error');
+                    return;
+                }
+                
+                console.log('🔧 Iniciando correção da solicitação 350...');
+                
+                // Buscar solicitação atual
+                const request = await getRequest(350);
+                console.log('📝 Solicitação 350 encontrada:', request);
+                console.log('   Valor atual:', request.quantidade);
+                
+                // Valor atual: 2377705 (2.377.705)
+                // Valor corrigido: 2377 (2.377,705)
+                const valorAtual = request.quantidade;
+                const valorCorrigido = 2377;
+                
+                if (valorAtual === valorCorrigido) {
+                    console.log('✅ Solicitação 350 já está com o valor correto');
+                    showNotification('Solicitação 350 já está com o valor correto', 'success');
+                    return;
+                }
+                
+                // Confirmar correção
+                if (!confirm(`Corrigir quantidade da solicitação 350?\n\nValor atual: ${valorAtual.toLocaleString('pt-BR')}\nValor corrigido: ${valorCorrigido.toLocaleString('pt-BR')}`)) {
+                    return;
+                }
+                
+                // Atualizar quantidade
+                await updateRequest(350, { quantidade: valorCorrigido });
+                
+                console.log('✅ Solicitação 350 corrigida com sucesso!');
+                showNotification('Solicitação 350 corrigida com sucesso', 'success');
+                
+                // Recarregar lista
+                await loadRequests();
+                await loadDashboard();
+            } catch (error) {
+                console.error('❌ Erro ao corrigir solicitação 350:', error);
+                showNotification('Erro ao corrigir: ' + error.message, 'error');
+            }
         };
 
         // Função cancelar para solicitante
