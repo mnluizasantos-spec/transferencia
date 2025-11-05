@@ -791,14 +791,14 @@
             }
         }
         
-        function goToPage(page) {
+        window.goToPage = function(page) {
             const totalPages = Math.ceil(total / pageSize);
             if (page < 1 || page > totalPages) return;
             currentPage = page;
             loadRequests();
         }
         
-        function changePageSize(newSize) {
+        window.changePageSize = function(newSize) {
             pageSize = parseInt(newSize);
             currentPage = 1;
             loadRequests();
