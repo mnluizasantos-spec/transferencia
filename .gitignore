@@ -10,6 +10,9 @@ pnpm-lock.yaml
 .env.production
 .env.staging
 
+# Senhas iniciais (não versionar em repositório público)
+db/SENHAS_INICIAIS.md
+
 # Netlify
 .netlify/
 # netlify/ (comentado - precisamos das funções)
