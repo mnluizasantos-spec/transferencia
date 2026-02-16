@@ -40,7 +40,7 @@ async function handleStats(event, sql, user) {
           COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as atrasados,
           COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vencem_hoje
         FROM material_requests
-        WHERE deleted_at IS NULL AND TRIM(requester_name) IN ('Flexíveis', 'Flexiveis')
+        WHERE deleted_at IS NULL AND TRIM(requester_name) IN ('Flexíveis', 'Flexiveis') AND entregar_em = 'Flexiveis'
       `;
     } else if (isSolicitante) {
       [stats] = await sql`
@@ -113,7 +113,7 @@ async function handleUrgentes(event, sql, user) {
         SELECT mr.*, mr.requester_name as solicitante_nome
         FROM material_requests mr
         WHERE mr.deleted_at IS NULL AND mr.urgencia = 'Urgente' AND mr.status != 'Concluído'
-        AND TRIM(mr.requester_name) IN ('Flexíveis', 'Flexiveis')
+        AND TRIM(mr.requester_name) IN ('Flexíveis', 'Flexiveis') AND mr.entregar_em = 'Flexiveis'
         ORDER BY mr.deadline ASC NULLS LAST, mr.created_at ASC
       `;
     } else {
@@ -182,7 +182,7 @@ async function handleTrends(event, sql, user) {
         FROM material_requests
         WHERE deleted_at IS NULL
         AND created_at >= CURRENT_DATE - INTERVAL '30 days'
-        AND TRIM(requester_name) IN ('Flexíveis', 'Flexiveis')
+        AND TRIM(requester_name) IN ('Flexíveis', 'Flexiveis') AND entregar_em = 'Flexiveis'
         GROUP BY DATE(created_at)
         ORDER BY data DESC
       `;
