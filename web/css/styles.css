@@ -747,6 +747,10 @@ th {
     letter-spacing: 0.5px;
 }
 
+th.th-nowrap {
+    white-space: nowrap;
+}
+
 td {
     padding: 16px;
     border-top: 1px solid #f0f2f5;
