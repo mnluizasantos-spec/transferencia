@@ -265,7 +265,7 @@
 
                     <div class="form-group" id="form-group-numero-remessa" style="display: none;">
                         <label for="numero-remessa">Nº Remessa</label>
-                        <input type="text" id="numero-remessa" placeholder="Preenchido pelo separador">
+                        <input type="text" id="numero-remessa" placeholder="Somente números" inputmode="numeric" pattern="[0-9]*" maxlength="100" title="Apenas números">
                     </div>
 
                     <div class="form-group">
@@ -1000,6 +1000,14 @@
                     alert('Nº Remessa é obrigatório para solicitações de Salto.');
                     return;
                 }
+                if (!/^\d+$/.test(val)) {
+                    alert('Nº Remessa deve conter apenas números.');
+                    return;
+                }
+            }
+            if (numeroRemessaEl && numeroRemessaEl.value.trim() && !/^\d+$/.test(numeroRemessaEl.value.trim())) {
+                alert('Nº Remessa deve conter apenas números.');
+                return;
             }
 
             const data = {
