@@ -385,6 +385,26 @@
             return err != null ? String(err) : 'Erro desconhecido';
         }
 
+        /** Extrai mensagem detalhada da resposta de erro da API (ex.: importação) */
+        function getApiErrorDetail(result) {
+            if (!result) return 'Erro na importação';
+            const err = result.error;
+            if (typeof err === 'string') return err;
+            if (err && typeof err.message === 'string') {
+                let msg = err.message;
+                if (err.details != null) {
+                    if (Array.isArray(err.details)) {
+                        const lines = err.details.map(d => typeof d === 'string' ? d : (d.error || d.message || d.row != null ? `Linha ${d.row}: ${d.error || d.message || ''}` : ''));
+                        if (lines.length) msg += '\n\n' + lines.join('\n');
+                    } else if (typeof err.details === 'object') {
+                        msg += '\n' + (err.details.message || JSON.stringify(err.details));
+                    }
+                }
+                return msg;
+            }
+            return 'Erro na importação';
+        }
+
         // Inicialização
         document.addEventListener('DOMContentLoaded', () => {
             initializeUser();
@@ -1526,14 +1546,15 @@
                     alert(`Importação concluída!\nSucessos: ${sucessos}\nErros: ${erros}`);
                     const detalhes = result.details ?? result.errors;
                     if (Array.isArray(detalhes) && detalhes.length > 0) {
-                        console.log('Erros de importação:', detalhes);
+                        const detalheStr = detalhes.map(d => `Linha ${d.row ?? '?'}: ${d.error ?? d.message ?? ''}`).join('\n');
+                        alert(`Importação concluída!\nSucessos: ${sucessos}\nErros: ${erros}\n\nDetalhes dos erros:\n${detalheStr}`);
                     }
                     loadRequests(); // Recarregar lista
                 } else {
-                    throw new Error(result.error || 'Erro na importação');
+                    throw new Error(getApiErrorDetail(result));
                 }
             } catch (error) {
-                alert(`Erro na importação: ${getErrorMessage(error)}`);
+                alert(`Erro na importação:\n\n${getErrorMessage(error)}`);
             } finally {
                 event.target.value = ''; // Limpar seleção
             }
