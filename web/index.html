@@ -612,6 +612,7 @@
             }
 
             const entregarEmLabel = (v) => ({ Grafica: 'Gráfica', Salto: 'Salto', Flexiveis: 'Flexíveis' }[v] || v || '-');
+            // Destaque em verde para solicitações de Salto e Flexíveis (facilita visualização do separador)
             const isFlexiveisSalto = (name) => (name && (name === 'Flexíveis' || name === 'Salto'));
             tbody.innerHTML = currentRequests.map(req => {
                 const reqName = req.solicitante_nome || req.requester_name;
@@ -846,6 +847,15 @@
             document.getElementById('selection-actions').style.display = count > 0 ? 'block' : 'none';
         }
 
+        function isSaltoUser(user) {
+            return user && (user.email === 'salto@antilhas.com' || (user.name && user.name.trim() === 'Salto') || (user.nome && user.nome.trim() === 'Salto'));
+        }
+        function isSaltoRequest(req) {
+            if (!req) return false;
+            const name = req.solicitante_nome || req.requester_name;
+            return name && String(name).trim() === 'Salto';
+        }
+
         window.openRequestModal = function() {
             editingRequestId = null;
             document.getElementById('modal-title').textContent = 'Nova Solicitação';
@@ -853,8 +863,11 @@
             document.getElementById('request-form').reset();
             document.getElementById('request-id').value = '';
             document.getElementById('entregar-em').value = '';
-            document.getElementById('form-group-numero-remessa').style.display = 'none';
             const user = getCurrentUser();
+            const showNumeroRemessa = isSaltoUser(user);
+            document.getElementById('form-group-numero-remessa').style.display = showNumeroRemessa ? 'block' : 'none';
+            const numeroRemessaInput = document.getElementById('numero-remessa');
+            if (numeroRemessaInput) numeroRemessaInput.required = showNumeroRemessa;
             if (user && (user.name || user.nome)) {
                 document.getElementById('solicitante').value = user.name || user.nome;
             }
@@ -887,14 +900,33 @@
             document.getElementById('justificativa').value = request.justificativa || '';
 
             const user = getCurrentUser();
-            const showNumeroRemessa = user && (user.role === 'separador' || user.role === 'admin');
+            const isSaltoReq = isSaltoRequest(request);
+            const showNumeroRemessa = isSaltoReq || (user && (user.role === 'separador' || user.role === 'admin'));
             document.getElementById('form-group-numero-remessa').style.display = showNumeroRemessa ? 'block' : 'none';
+            const numeroRemessaInput = document.getElementById('numero-remessa');
+            if (numeroRemessaInput) numeroRemessaInput.required = isSaltoReq;
 
             document.getElementById('request-modal').classList.add('active');
         };
 
         window.saveRequest = async function() {
             const id = document.getElementById('request-id').value;
+            const user = getCurrentUser();
+            const numeroRemessaEl = document.getElementById('numero-remessa');
+            const numeroRemessaGroup = numeroRemessaEl && numeroRemessaEl.closest('.form-group');
+            const isNumeroRemessaVisible = numeroRemessaGroup && numeroRemessaGroup.style.display !== 'none';
+
+            const needNumeroRemessa = !id
+                ? isSaltoUser(user)
+                : (() => { const req = currentRequests.find(r => r.id === parseInt(id, 10)); return req && isSaltoRequest(req); })();
+            if (needNumeroRemessa && isNumeroRemessaVisible) {
+                const val = numeroRemessaEl ? numeroRemessaEl.value.trim() : '';
+                if (!val) {
+                    alert('Nº Remessa é obrigatório para solicitações de Salto.');
+                    return;
+                }
+            }
+
             const data = {
                 material_code: document.getElementById('material-code').value,
                 material_description: document.getElementById('material-description').value,
@@ -910,8 +942,7 @@
             if (!id) {
                 data.requester_name = document.getElementById('solicitante').value;
             }
-            const numeroRemessaEl = document.getElementById('numero-remessa');
-            if (numeroRemessaEl && numeroRemessaEl.closest('.form-group').style.display !== 'none') {
+            if (numeroRemessaEl && isNumeroRemessaVisible) {
                 data.numero_remessa = numeroRemessaEl.value.trim() || null;
             }
 
