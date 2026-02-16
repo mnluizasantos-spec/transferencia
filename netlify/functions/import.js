@@ -10,9 +10,19 @@ const { verifyToken, requireRole } = require('./utils/middleware');
 const { validateImportRow, validateFileSize, getClientIP, getUserAgent, parseBrazilianDate, parseExcelDate } = require('./utils/validators');
 const { logInfo, logAudit } = require('./utils/logger');
 
+/** Normaliza string para comparação de cabeçalho: minúsculas, sem acentos, sem espaços extras */
+function normalizeHeader(s) {
+  return String(s)
+    .normalize('NFD')
+    .replace(/\u0300-\u036f/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '');
+}
+
 /**
- * Obtém valor de célula do Excel tentando várias chaves e fallback case-insensitive
- * (evita perder valor quando o cabeçalho vem com grafia diferente, ex.: "Solicitante " ou "solicitante")
+ * Obtém valor de célula do Excel tentando várias chaves e fallback por nome normalizado
+ * (aceita "Solicitante", "solicitante", com acentos, espaços, etc.)
  */
 function getCellValue(row, possibleKeys, normalizedKey) {
   for (const k of possibleKeys) {
@@ -20,10 +30,9 @@ function getCellValue(row, possibleKeys, normalizedKey) {
     if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
   }
   if (normalizedKey) {
-    const target = normalizedKey.toLowerCase().replace(/\s+/g, '');
+    const target = normalizeHeader(normalizedKey);
     for (const key of Object.keys(row)) {
-      const n = String(key).toLowerCase().trim().replace(/\s+/g, '');
-      if (n === target) {
+      if (normalizeHeader(key) === target) {
         const val = row[key];
         if (val !== undefined && val !== null && String(val).trim() !== '') return String(val).trim();
         return null;
@@ -396,10 +405,14 @@ async function handleExecute(event, sql, user) {
       // Salto/Flexíveis: usar sempre o nome do usuário logado para as linhas aparecerem na listagem dele
       // Demais perfis: usar exatamente o valor preenchido na coluna Solicitante do Excel (várias grafias de cabeçalho)
       const isSaltoOuFlexiveis = user.role === 'solicitante' && user.email !== 'solicitante@antilhas.com';
-      const solicitanteFromFile = getCellValue(row, ['Solicitante', 'solicitante', 'SOLICITANTE'], 'solicitante') || row.Solicitante || row.solicitante;
+      let solicitanteFromFile = getCellValue(row, ['Solicitante', 'solicitante', 'SOLICITANTE'], 'solicitante');
+      if (solicitanteFromFile == null || solicitanteFromFile === '') {
+        const raw = row.Solicitante ?? row.solicitante;
+        solicitanteFromFile = (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : null;
+      }
       const solicitanteName = isSaltoOuFlexiveis
         ? (user.name || user.nome || '').toString().trim()
-        : solicitanteFromFile;
+        : (solicitanteFromFile != null && solicitanteFromFile !== '' ? solicitanteFromFile : null);
 
       // Local de entrega: Salto/Flexíveis conforme perfil do usuário; Gráfica/admin/separador ficam null (exibe como Gráfica)
       const meuNome = (user.name || user.nome || '').toString().trim();
