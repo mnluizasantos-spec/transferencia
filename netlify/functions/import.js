@@ -272,7 +272,7 @@ async function handleValidate(event, sql, user) {
  * Executa importação em massa
  */
 async function handleExecute(event, sql, user) {
-  requireRole(user, ['admin', 'solicitante']);
+  requireRole(user, ['admin', 'separador', 'solicitante']);
 
   // Parsear JSON body
   const requestBody = JSON.parse(event.body || '{}');
