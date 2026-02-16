@@ -1,13 +1,58 @@
 -- ============================================================================
--- Atualizar senhas Flexíveis e Salto no Neon (bcrypt rounds=10)
--- Execute este script no Neon para que os logins flexiveis@antilhas.com e salto@antilhas.com funcionem.
+-- Atualizar senhas de todos os usuários no Neon (bcrypt rounds=10)
+-- Execute no Neon SQL Editor para alinhar: admin, separador, solicitante, Flexíveis, Salto.
 -- ============================================================================
 
--- Flexíveis
+-- admin@antilhas.com
+INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
+VALUES (
+  'admin@antilhas.com',
+  '$2a$10$r2LUHAIVJYV/ge63o0Gscev7xZcv0LbyUkUVImgHqaztFBV4KEHz6',
+  'Administrador',
+  'Administrador',
+  'admin',
+  false
+)
+ON CONFLICT (email) DO UPDATE SET
+  password_hash = EXCLUDED.password_hash,
+  nome = EXCLUDED.nome,
+  name = EXCLUDED.name;
+
+-- separador@antilhas.com
+INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
+VALUES (
+  'separador@antilhas.com',
+  '$2a$10$LjfIF3saStpQPkARIXl73OR8SiGNqfsBSy92VXA7.ynYijshLsMti',
+  'Separador de Material',
+  'Separador de Material',
+  'separador',
+  false
+)
+ON CONFLICT (email) DO UPDATE SET
+  password_hash = EXCLUDED.password_hash,
+  nome = EXCLUDED.nome,
+  name = EXCLUDED.name;
+
+-- solicitante@antilhas.com
+INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
+VALUES (
+  'solicitante@antilhas.com',
+  '$2a$10$Ymoz.CK6mIO6X6db7o5X.u/GNuA7Tpi9lbiml2JB//Ysn8MFCa0ru',
+  'Solicitante Teste',
+  'Solicitante Teste',
+  'solicitante',
+  false
+)
+ON CONFLICT (email) DO UPDATE SET
+  password_hash = EXCLUDED.password_hash,
+  nome = EXCLUDED.nome,
+  name = EXCLUDED.name;
+
+-- flexiveis@antilhas.com
 INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
 VALUES (
   'flexiveis@antilhas.com',
-  '$2a$10$QQIPLrCrf2qU.tdtYfop..9cuIFOpyyXcQ5PNmoRdZhFwU3Qis0oe',
+  '$2a$10$qn7bUTJfPWVE.4Ds8zw81ux0hoDSwrK5sLBdHAMF89KnVV6KNwAqS',
   'Flexíveis',
   'Flexíveis',
   'solicitante',
@@ -18,11 +63,11 @@ ON CONFLICT (email) DO UPDATE SET
   nome = EXCLUDED.nome,
   name = EXCLUDED.name;
 
--- Salto
+-- salto@antilhas.com
 INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
 VALUES (
   'salto@antilhas.com',
-  '$2a$10$eGuujbcgkJ0mj/LaZC/9GuNC.og7xLGmiB4tXqPFvSOB.RdwDgijG',
+  '$2a$10$Xf.ZJXdggKylI5XXL9sWeuZPtF66AVC3f4v8PW3B69RQltt0c7fmS',
   'Salto',
   'Salto',
   'solicitante',
