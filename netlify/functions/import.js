@@ -359,8 +359,11 @@ async function handleExecute(event, sql, user) {
         throw new Error(rowErrors.join('; '));
       }
 
-      // Usar nome do solicitante diretamente do Excel
-      const solicitanteName = row.Solicitante || row.solicitante;
+      // Salto/Flexíveis: usar sempre o nome do usuário logado para as linhas aparecerem na listagem dele
+      const isSaltoOuFlexiveis = user.role === 'solicitante' && user.email !== 'solicitante@antilhas.com';
+      const solicitanteName = isSaltoOuFlexiveis
+        ? (user.name || user.nome || '').toString().trim()
+        : (row.Solicitante || row.solicitante);
 
       // Usar função robusta de parsing de quantidade
       const rawQty = row.Quantidade ?? row.quantidade ?? '';
