@@ -28,7 +28,8 @@ async function handleStats(event, sql, user) {
           COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as atrasados,
           COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vencem_hoje
         FROM material_requests
-        WHERE deleted_at IS NULL AND requester_name IN ('Gráfica', 'Solicitante Teste')
+        WHERE deleted_at IS NULL
+          AND COALESCE(TRIM(requester_name), '') NOT IN ('Salto', 'Flexíveis')
       `;
     } else if (isSolicitante) {
       [stats] = await sql`
@@ -91,7 +92,7 @@ async function handleUrgentes(event, sql, user) {
       WHERE mr.deleted_at IS NULL
       AND mr.urgencia = 'Urgente'
       AND mr.status != 'Concluído'
-      AND mr.requester_name IN ('Gráfica', 'Solicitante Teste')
+      AND COALESCE(TRIM(mr.requester_name), '') NOT IN ('Salto', 'Flexíveis')
       ORDER BY mr.deadline ASC NULLS LAST, mr.created_at ASC
     `;
   } else if (user.role === 'solicitante') {
@@ -144,7 +145,7 @@ async function handleTrends(event, sql, user) {
       FROM material_requests
       WHERE deleted_at IS NULL
       AND created_at >= CURRENT_DATE - INTERVAL '30 days'
-      AND requester_name IN ('Gráfica', 'Solicitante Teste')
+      AND COALESCE(TRIM(requester_name), '') NOT IN ('Salto', 'Flexíveis')
       GROUP BY DATE(created_at)
       ORDER BY data DESC
     `;
