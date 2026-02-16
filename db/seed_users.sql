@@ -34,13 +34,13 @@ ON CONFLICT (email) DO UPDATE SET
   nome = EXCLUDED.nome,
   name = EXCLUDED.name;
 
--- solicitante@antilhas.com (senha: solicit@m@t)
+-- solicitante@antilhas.com (senha: solicit@m@t) – perfil Gráfica
 INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
 VALUES (
   'solicitante@antilhas.com',
   '$2a$10$Ymoz.CK6mIO6X6db7o5X.u/GNuA7Tpi9lbiml2JB//Ysn8MFCa0ru',
-  'Solicitante Teste',
-  'Solicitante Teste',
+  'Gráfica',
+  'Gráfica',
   'solicitante',
   false
 )
