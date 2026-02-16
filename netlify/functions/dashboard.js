@@ -13,22 +13,35 @@ const { verifyToken } = require('./utils/middleware');
  */
 async function handleStats(event, sql, user) {
   try {
-    console.log('Dashboard Stats - Iniciando', { userRole: user.role, userName: user.name });
-    
-    console.log('Dashboard Stats - Executando query');
-    
-    // TODOS os perfis veem TODAS as solicitações
-    const [stats] = await sql`
-      SELECT 
-        COUNT(*) as total,
-        COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
-        COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
-        COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as atrasados,
-        COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vencem_hoje
-      FROM material_requests
-      WHERE deleted_at IS NULL
-    `;
-    
+    const meuNome = (user.name || user.nome || '').toString().trim();
+    const isSolicitante = user.role === 'solicitante' && meuNome;
+    console.log('Dashboard Stats - Iniciando', { userRole: user.role, userName: user.name, isSolicitante });
+
+    let stats;
+    if (isSolicitante) {
+      [stats] = await sql`
+        SELECT 
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
+          COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
+          COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as atrasados,
+          COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vencem_hoje
+        FROM material_requests
+        WHERE deleted_at IS NULL AND requester_name = ${meuNome}
+      `;
+    } else {
+      [stats] = await sql`
+        SELECT 
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
+          COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
+          COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as atrasados,
+          COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vencem_hoje
+        FROM material_requests
+        WHERE deleted_at IS NULL
+      `;
+    }
+
     console.log('Dashboard Stats - Resultado', stats);
     
     return {
