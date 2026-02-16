@@ -54,12 +54,15 @@ async function apiCall(endpoint, options = {}) {
                 data?.error?.message ||
                 data?.message ||
                 `Erro ${response.status}`;
-            const detail =
-                data?.error?.detail ||
+            const rawDetail =
+                data?.error?.detail ??
                 data?.detail;
-            const fullMessage = detail
+            const detail = rawDetail != null && typeof rawDetail !== 'string'
+                ? String(rawDetail)
+                : rawDetail;
+            const fullMessage = (detail
                 ? `${baseMessage} – ${detail}`
-                : baseMessage;
+                : baseMessage) || `Erro ${response.status}`;
 
             throw new Error(fullMessage);
         }
