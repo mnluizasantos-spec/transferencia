@@ -19,7 +19,7 @@ const ROUNDS = 10;
 const USERS = [
   { email: 'admin@antilhas.com', nome: 'Administrador', name: 'Administrador', role: 'admin', password: 'admin123' },
   { email: 'separador@antilhas.com', nome: 'Separador de Material', name: 'Separador de Material', role: 'separador', password: 'sep@rador@ntilhas' },
-  { email: 'solicitante@antilhas.com', nome: 'Solicitante Teste', name: 'Solicitante Teste', role: 'solicitante', password: 'solicit@m@t' },
+  { email: 'solicitante@antilhas.com', nome: 'Gráfica', name: 'Gráfica', role: 'solicitante', password: 'solicit@m@t' },
   { email: 'flexiveis@antilhas.com', nome: 'Flexíveis', name: 'Flexíveis', role: 'solicitante', password: 'Flexiveis#2025' },
   { email: 'salto@antilhas.com', nome: 'Salto', name: 'Salto', role: 'solicitante', password: 'Salto#2025' }
 ];
