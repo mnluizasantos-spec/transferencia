@@ -44,12 +44,36 @@ VALUES (
 )
 ON CONFLICT (email) DO NOTHING;
 
+-- Solicitante Flexíveis
+INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
+VALUES (
+  'flexiveis@antilhas.com',
+  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- admin123
+  'Flexíveis',
+  'Flexíveis',
+  'solicitante',
+  false
+)
+ON CONFLICT (email) DO NOTHING;
+
+-- Solicitante Salto
+INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
+VALUES (
+  'salto@antilhas.com',
+  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- admin123
+  'Salto',
+  'Salto',
+  'solicitante',
+  false
+)
+ON CONFLICT (email) DO NOTHING;
+
 -- Log da operação
 INSERT INTO audit_logs (user_id, acao, tabela_afetada, detalhes_json)
 VALUES (
   NULL,
   'seed_users',
   'users',
-  '{"message": "Usuários iniciais criados", "count": 3}'::jsonb
+  '{"message": "Usuários iniciais criados", "count": 5}'::jsonb
 );
 
