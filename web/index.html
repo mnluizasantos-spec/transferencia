@@ -1568,8 +1568,30 @@
             }
         };
 
-        window.downloadTemplate = function() {
-            window.location.href = '/.netlify/functions/import/template';
+        window.downloadTemplate = async function() {
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+                alert('Faça login para baixar o template.');
+                return;
+            }
+            try {
+                const response = await fetch('/.netlify/functions/import/template', {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error(response.status === 401 ? 'Sessão expirada. Faça login novamente.' : 'Erro ao baixar template');
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'template_solicitacoes.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (e) {
+                alert('Erro ao baixar template: ' + (e.message || e));
+            }
         };
 
         window.handleLogout = async function() {
