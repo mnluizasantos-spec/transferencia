@@ -106,7 +106,11 @@ async function handleList(event, sql, user) {
       allRequests = allRequests.filter(r => r.deadline && new Date(r.deadline) <= endDate);
     }
     if (entregarEmFilter && ['Grafica', 'Salto', 'Flexiveis'].includes(entregarEmFilter)) {
-      allRequests = allRequests.filter(r => r.entregar_em === entregarEmFilter);
+      if (entregarEmFilter === 'Grafica') {
+        allRequests = allRequests.filter(r => !r.entregar_em || r.entregar_em === 'Grafica');
+      } else {
+        allRequests = allRequests.filter(r => r.entregar_em === entregarEmFilter);
+      }
     }
 
     // Solicitante só enxerga solicitações do próprio perfil (Salto, Flexíveis ou Gráfica)
