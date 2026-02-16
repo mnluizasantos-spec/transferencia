@@ -363,6 +363,12 @@
         let pageSize = 100;
         let total = 0;
 
+        function getErrorMessage(err) {
+            if (err instanceof Error) return err.message;
+            if (err != null && typeof err === 'object' && typeof err.message === 'string') return err.message;
+            return err != null ? String(err) : 'Erro desconhecido';
+        }
+
         // Inicialização
         document.addEventListener('DOMContentLoaded', () => {
             initializeUser();
@@ -532,14 +538,14 @@
                 renderRequests();
                 updatePaginationControls();
             } catch (error) {
-                if (error.name === 'AbortError') {
+                if (error && error.name === 'AbortError') {
                     console.log('Requisição cancelada');
                     return;
                 }
                 console.error('Erro ao carregar solicitações:', error);
                 document.getElementById('requests-tbody').innerHTML = `
                     <tr><td colspan="15" style="text-align: center; color: var(--danger);">
-                        Erro ao carregar solicitações: ${error.message}
+                        Erro ao carregar solicitações: ${getErrorMessage(error)}
                     </td></tr>
                 `;
             }
@@ -921,7 +927,7 @@
                 closeRequestModal();
                 await loadRequests();
             } catch (error) {
-                alert(`Erro ao salvar: ${error.message}`);
+                alert(`Erro ao salvar: ${getErrorMessage(error)}`);
             }
         };
 
@@ -933,7 +939,7 @@
                 alert('Solicitação concluída!');
                 await loadRequests();
             } catch (error) {
-                alert(`Erro: ${error.message}`);
+                alert(`Erro: ${getErrorMessage(error)}`);
             }
         };
 
@@ -973,7 +979,7 @@
                 await loadRequests();
             } catch (error) {
                 console.error('Erro ao recusar:', error);
-                alert('Erro ao recusar solicitação: ' + error.message);
+                alert('Erro ao recusar solicitação: ' + getErrorMessage(error));
             }
         };
 
@@ -992,7 +998,7 @@
                 alert(`Status alterado para "${statusLabels[newStatus]}"!`);
                 await loadRequests();
             } catch (error) {
-                alert(`Erro: ${error.message}`);
+                alert(`Erro: ${getErrorMessage(error)}`);
             }
         };
 
@@ -1002,7 +1008,7 @@
                 alert('Solicitação revertida para Em Separação!');
                 await loadRequests();
             } catch (error) {
-                alert(`Erro ao reverter: ${error.message}`);
+                alert(`Erro ao reverter: ${getErrorMessage(error)}`);
             }
         };
 
@@ -1193,7 +1199,7 @@
                 await loadDashboard();
             } catch (error) {
                 console.error('❌ Erro ao corrigir solicitação 350:', error);
-                showNotification('Erro ao corrigir: ' + error.message, 'error');
+                showNotification('Erro ao corrigir: ' + getErrorMessage(error), 'error');
             }
         };
 
@@ -1207,7 +1213,7 @@
                 await loadDashboard();
                 showNotification('Solicitação cancelada com sucesso', 'success');
             } catch (error) {
-                showNotification('Erro ao cancelar: ' + error.message, 'error');
+                showNotification('Erro ao cancelar: ' + getErrorMessage(error), 'error');
             }
         };
 
@@ -1315,7 +1321,7 @@
             try {
                 await printPickingList(Array.from(selectedIds));
             } catch (error) {
-                alert(`Erro ao gerar impressão: ${error.message}`);
+                alert(`Erro ao gerar impressão: ${getErrorMessage(error)}`);
             }
         };
 
@@ -1430,7 +1436,7 @@
                     throw new Error(result.error || 'Erro na importação');
                 }
             } catch (error) {
-                alert(`Erro na importação: ${error.message}`);
+                alert(`Erro na importação: ${getErrorMessage(error)}`);
             } finally {
                 event.target.value = ''; // Limpar seleção
             }
@@ -1501,7 +1507,7 @@
                         </tbody>
                     </table>`;
             } catch (e) {
-                alert(e.message);
+                alert(getErrorMessage(e));
             }
         }
 
@@ -1534,7 +1540,7 @@
                         </tbody>
                     </table>`;
             } catch (e) {
-                alert(e.message);
+                alert(getErrorMessage(e));
             }
         }
 
@@ -1566,7 +1572,7 @@
                 window.URL.revokeObjectURL(url);
                 
             } catch (e) {
-                alert('Erro ao baixar arquivo: ' + e.message);
+                alert('Erro ao baixar arquivo: ' + getErrorMessage(e));
             }
         }
 
