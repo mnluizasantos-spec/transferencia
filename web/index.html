@@ -664,11 +664,14 @@
                 if (x === '' || x === '-') return 'Gráfica';
                 return ({ Grafica: 'Gráfica', Salto: 'Salto', Flexiveis: 'Flexíveis' }[x] || x);
             };
-            // Destaque em verde para solicitações de Salto e Flexíveis (facilita visualização do separador)
-            const isFlexiveisSalto = (name) => (name && (name === 'Flexíveis' || name === 'Salto'));
+            // Destaque em verde para solicitações com Entregar em = Salto ou Flexíveis (facilita visualização do separador)
+            const isEntregarEmFlexiveisSalto = (entregarEm) => {
+                const em = (entregarEm && typeof entregarEm === 'string') ? entregarEm.trim() : '';
+                return em === 'Salto' || em === 'Flexiveis';
+            };
             tbody.innerHTML = currentRequests.map(req => {
                 const reqName = req.solicitante_nome || req.requester_name;
-                const rowClass = isFlexiveisSalto(reqName) ? 'row-flexiveis-salto' : '';
+                const rowClass = isEntregarEmFlexiveisSalto(req.entregar_em) ? 'row-flexiveis-salto' : '';
                 return `
                 <tr class="${rowClass}">
                     <td><input type="checkbox" class="row-checkbox" data-id="${req.id}"></td>
