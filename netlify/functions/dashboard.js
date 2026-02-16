@@ -15,10 +15,22 @@ async function handleStats(event, sql, user) {
   try {
     const meuNome = (user.name || user.nome || '').toString().trim();
     const isSolicitante = user.role === 'solicitante' && meuNome;
-    console.log('Dashboard Stats - Iniciando', { userRole: user.role, userName: user.name, isSolicitante });
+    const isGraficaUser = user.email === 'solicitante@antilhas.com';
+    console.log('Dashboard Stats - Iniciando', { userRole: user.role, userName: user.name, isSolicitante, isGraficaUser });
 
     let stats;
-    if (isSolicitante) {
+    if (isSolicitante && isGraficaUser) {
+      [stats] = await sql`
+        SELECT 
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
+          COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
+          COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as atrasados,
+          COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vencem_hoje
+        FROM material_requests
+        WHERE deleted_at IS NULL AND requester_name IN ('Gráfica', 'Solicitante Teste')
+      `;
+    } else if (isSolicitante) {
       [stats] = await sql`
         SELECT 
           COUNT(*) as total,
@@ -70,7 +82,7 @@ async function handleStats(event, sql, user) {
  */
 async function handleUrgentes(event, sql, user) {
   let urgentes;
-  if (user.role === 'solicitante') {
+  if (user.role === 'solicitante' && user.email === 'solicitante@antilhas.com') {
     urgentes = await sql`
       SELECT 
         mr.*,
@@ -79,7 +91,20 @@ async function handleUrgentes(event, sql, user) {
       WHERE mr.deleted_at IS NULL
       AND mr.urgencia = 'Urgente'
       AND mr.status != 'Concluído'
-      AND mr.requester_name = ${user.name}
+      AND mr.requester_name IN ('Gráfica', 'Solicitante Teste')
+      ORDER BY mr.deadline ASC NULLS LAST, mr.created_at ASC
+    `;
+  } else if (user.role === 'solicitante') {
+    const meuNome = (user.name || user.nome || '').toString().trim();
+    urgentes = await sql`
+      SELECT 
+        mr.*,
+        mr.requester_name as solicitante_nome
+      FROM material_requests mr
+      WHERE mr.deleted_at IS NULL
+      AND mr.urgencia = 'Urgente'
+      AND mr.status != 'Concluído'
+      AND mr.requester_name = ${meuNome}
       ORDER BY mr.deadline ASC NULLS LAST, mr.created_at ASC
     `;
   } else {
@@ -109,7 +134,7 @@ async function handleUrgentes(event, sql, user) {
 async function handleTrends(event, sql, user) {
   // Últimos 30 dias
   let trends;
-  if (user.role === 'solicitante') {
+  if (user.role === 'solicitante' && user.email === 'solicitante@antilhas.com') {
     trends = await sql`
       SELECT 
         DATE(created_at) as data,
@@ -119,7 +144,22 @@ async function handleTrends(event, sql, user) {
       FROM material_requests
       WHERE deleted_at IS NULL
       AND created_at >= CURRENT_DATE - INTERVAL '30 days'
-      AND requester_name = ${user.name}
+      AND requester_name IN ('Gráfica', 'Solicitante Teste')
+      GROUP BY DATE(created_at)
+      ORDER BY data DESC
+    `;
+  } else if (user.role === 'solicitante') {
+    const meuNome = (user.name || user.nome || '').toString().trim();
+    trends = await sql`
+      SELECT 
+        DATE(created_at) as data,
+        COUNT(*) as total_criadas,
+        COUNT(*) FILTER (WHERE status = 'Concluído') as total_concluidas,
+        COUNT(*) FILTER (WHERE urgencia = 'Urgente') as total_urgentes
+      FROM material_requests
+      WHERE deleted_at IS NULL
+      AND created_at >= CURRENT_DATE - INTERVAL '30 days'
+      AND requester_name = ${meuNome}
       GROUP BY DATE(created_at)
       ORDER BY data DESC
     `;
