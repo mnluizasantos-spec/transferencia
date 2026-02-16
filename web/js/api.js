@@ -51,29 +51,28 @@ async function apiCall(endpoint, options = {}) {
 
         if (!response.ok) {
             const baseMessage =
-                data?.error?.message ||
-                data?.message ||
-                `Erro ${response.status}`;
-            const rawDetail =
-                data?.error?.detail ??
-                data?.detail;
-            const detail = rawDetail != null && typeof rawDetail !== 'string'
-                ? String(rawDetail)
-                : rawDetail;
-            const fullMessage = (detail
-                ? `${baseMessage} – ${detail}`
-                : baseMessage) || `Erro ${response.status}`;
+                (data?.error?.message ?? data?.message) || `Erro ${response.status}`;
+            const rawDetail = data?.error?.detail ?? data?.detail;
+            const detailStr = rawDetail != null
+                ? (typeof rawDetail === 'string' ? rawDetail : String(rawDetail))
+                : '';
+            const fullMessage =
+                (detailStr ? `${baseMessage} – ${detailStr}` : baseMessage).trim() || `Erro ${response.status}`;
 
-            throw new Error(fullMessage);
+            const err = new Error(fullMessage);
+            throw err;
         }
 
         return data;
-    } catch (error) {
-        console.error('API call error:', error);
-        if (error.name === 'TypeError' && error.message && error.message.toLowerCase().includes('fetch')) {
+    } catch (err) {
+        console.error('API call error:', err);
+        if (err instanceof TypeError && err.message && String(err.message).toLowerCase().includes('fetch')) {
             throw new Error('Erro de rede. Verifique a conexão ou se o servidor está acessível.');
         }
-        throw error;
+        if (err instanceof Error) {
+            throw err;
+        }
+        throw new Error(err != null ? String(err) : 'Erro desconhecido na chamada à API.');
     }
 }
 
