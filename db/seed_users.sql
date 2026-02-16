@@ -1,14 +1,14 @@
 -- ============================================================================
 -- Seed de Usuários Iniciais
 -- ============================================================================
--- Admin, Separador e Solicitante: senha admin123 (hash bcrypt rounds=10).
--- Flexíveis e Salto: senhas distintas; ver db/SENHAS_INICIAIS.md (apenas os dois novos).
+-- Senhas: admin=admin123, separador=sep@rador@ntilhas, solicitante=solicit@m@t,
+--         flexiveis=Flexiveis#2025, salto=Salto#2025. Hashes bcrypt rounds=10.
 
 -- admin@antilhas.com (senha: admin123)
 INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
 VALUES (
   'admin@antilhas.com',
-  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+  '$2a$10$r2LUHAIVJYV/ge63o0Gscev7xZcv0LbyUkUVImgHqaztFBV4KEHz6',
   'Administrador',
   'Administrador',
   'admin',
@@ -19,35 +19,41 @@ ON CONFLICT (email) DO UPDATE SET
   nome = EXCLUDED.nome,
   name = EXCLUDED.name;
 
--- separador@antilhas.com (senha: admin123)
+-- separador@antilhas.com (senha: sep@rador@ntilhas)
 INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
 VALUES (
   'separador@antilhas.com',
-  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+  '$2a$10$LjfIF3saStpQPkARIXl73OR8SiGNqfsBSy92VXA7.ynYijshLsMti',
   'Separador de Material',
   'Separador de Material',
   'separador',
   false
 )
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (email) DO UPDATE SET
+  password_hash = EXCLUDED.password_hash,
+  nome = EXCLUDED.nome,
+  name = EXCLUDED.name;
 
--- solicitante@antilhas.com (senha: admin123)
+-- solicitante@antilhas.com (senha: solicit@m@t)
 INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
 VALUES (
   'solicitante@antilhas.com',
-  '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+  '$2a$10$Ymoz.CK6mIO6X6db7o5X.u/GNuA7Tpi9lbiml2JB//Ysn8MFCa0ru',
   'Solicitante Teste',
   'Solicitante Teste',
   'solicitante',
   false
 )
-ON CONFLICT (email) DO NOTHING;
+ON CONFLICT (email) DO UPDATE SET
+  password_hash = EXCLUDED.password_hash,
+  nome = EXCLUDED.nome,
+  name = EXCLUDED.name;
 
--- flexiveis@antilhas.com
+-- flexiveis@antilhas.com (senha: Flexiveis#2025)
 INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
 VALUES (
   'flexiveis@antilhas.com',
-  '$2a$10$QQIPLrCrf2qU.tdtYfop..9cuIFOpyyXcQ5PNmoRdZhFwU3Qis0oe',
+  '$2a$10$qn7bUTJfPWVE.4Ds8zw81ux0hoDSwrK5sLBdHAMF89KnVV6KNwAqS',
   'Flexíveis',
   'Flexíveis',
   'solicitante',
@@ -58,11 +64,11 @@ ON CONFLICT (email) DO UPDATE SET
   nome = EXCLUDED.nome,
   name = EXCLUDED.name;
 
--- salto@antilhas.com
+-- salto@antilhas.com (senha: Salto#2025)
 INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
 VALUES (
   'salto@antilhas.com',
-  '$2a$10$eGuujbcgkJ0mj/LaZC/9GuNC.og7xLGmiB4tXqPFvSOB.RdwDgijG',
+  '$2a$10$Xf.ZJXdggKylI5XXL9sWeuZPtF66AVC3f4v8PW3B69RQltt0c7fmS',
   'Salto',
   'Salto',
   'solicitante',
@@ -75,9 +81,4 @@ ON CONFLICT (email) DO UPDATE SET
 
 -- Log da operação
 INSERT INTO audit_logs (user_id, acao, tabela_afetada, detalhes_json)
-VALUES (
-  NULL,
-  'seed_users',
-  'users',
-  '{"message": "Usuários iniciais criados", "count": 5}'::jsonb
-);
+VALUES (NULL, 'seed_users', 'users', '{"message": "Usuários iniciais criados", "count": 5}'::jsonb);
