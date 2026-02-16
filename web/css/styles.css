@@ -582,6 +582,7 @@ table th:nth-child(13), table td:nth-child(13) { width: 180px; } /* Ações */
     margin-bottom: 24px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
     border: 1px solid rgba(0, 0, 0, 0.06);
+    overflow-x: auto;
 }
 
 .filters-panel-title {
@@ -601,20 +602,21 @@ table th:nth-child(13), table td:nth-child(13) { width: 180px; } /* Ações */
 }
 
 .controls-row.filters-row {
-    gap: 20px;
+    gap: 16px;
     align-items: flex-end;
+    flex-wrap: nowrap;
 }
 
 .filters-group {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 12px;
 }
 
 .filters-group-main {
-    flex: 1;
-    min-width: 280px;
+    flex: 0 1 auto;
+    min-width: 0;
 }
 
 .filters-group-main .search-box {
@@ -652,13 +654,13 @@ table th:nth-child(13), table td:nth-child(13) { width: 180px; } /* Ações */
 
 .filters-group-dates {
     display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
+    flex-wrap: nowrap;
+    gap: 12px;
 }
 
 .filters-actions {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 10px;
 }
@@ -966,6 +968,13 @@ tbody tr.row-flexiveis-salto:hover {
     .controls-row.filters-row {
         flex-direction: column;
         align-items: stretch;
+        flex-wrap: wrap;
+    }
+
+    .filters-group,
+    .filters-group-dates,
+    .filters-actions {
+        flex-wrap: wrap;
     }
 
     .filters-group-main {
