@@ -63,7 +63,7 @@ async function handleList(event, sql, user) {
       SELECT 
         id, material_code, material_description, quantidade, unidade,
         requester_name, urgencia, status, deadline, justificativa,
-        created_at, updated_at, created_by
+        created_at, updated_at, created_by, entregar_em, numero_remessa
       FROM material_requests
       WHERE deleted_at IS NULL
       ORDER BY created_at DESC
@@ -190,11 +190,12 @@ async function handleCreate(event, sql, user) {
   // Criar solicitação (Neon serverless não suporta transações complexas)
   const [newRequest] = await sql`
     INSERT INTO material_requests 
-      (material_code, material_description, quantidade, unidade, justificativa, requester_name, urgencia, deadline, production_start_date, status, created_by)
+      (material_code, material_description, quantidade, unidade, justificativa, requester_name, urgencia, deadline, production_start_date, status, created_by, entregar_em, numero_remessa)
     VALUES 
       (${validatedData.material_code}, ${validatedData.material_description}, ${validatedData.quantidade}, 
        ${validatedData.unidade}, ${validatedData.justificativa}, ${validatedData.requester_name}, ${validatedData.urgencia}, 
-       ${validatedData.deadline}, ${validatedData.production_start_date}, 'Pendente', ${user.userId})
+       ${validatedData.deadline}, ${validatedData.production_start_date}, 'Pendente', ${user.userId},
+       ${validatedData.entregar_em || null}, ${validatedData.numero_remessa || null})
     RETURNING *
   `;
 
@@ -282,6 +283,8 @@ async function handleUpdate(event, sql, user) {
       status = ${finalData.status},
       deadline = ${finalData.deadline},
       justificativa = ${finalData.justificativa},
+      entregar_em = ${finalData.entregar_em != null ? finalData.entregar_em : null},
+      numero_remessa = ${finalData.numero_remessa != null && finalData.numero_remessa !== '' ? finalData.numero_remessa : null},
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ${id}
     RETURNING *
