@@ -151,33 +151,40 @@ async function ensureImportFilesTable(sql) {
 
 /**
  * GET /api/import/template
- * Gera e retorna template Excel para download
+ * Gera e retorna template Excel para download (requer auth; Nº Remessa só para perfil Salto)
  */
-async function handleGetTemplate(event) {
-  // Criar workbook
+async function handleGetTemplate(event, sql, user) {
+  const isSalto = user && (
+    user.email === 'salto@antilhas.com' ||
+    (user.name || '').toString().trim() === 'Salto' ||
+    (user.nome || '').toString().trim() === 'Salto'
+  );
+
   const wb = XLSX.utils.book_new();
 
-  // Aba de dados (Nº Remessa obrigatório apenas para perfil Salto)
-  const wsData = XLSX.utils.aoa_to_sheet([
-    ['Material', 'Descrição', 'Quantidade', 'Unidade', 'Solicitante', 'Urgencia', 'Prazo', 'Justificativa', 'Nº Remessa'],
-    ['MP001', 'Matéria-Prima X123 - Aço inoxidável', '100', 'kg', 'João Silva', 'Normal', '20/10/2025', 'Exemplo de justificativa', '12345'],
-    ['COMP002', 'Componente Y456 - Parafuso M8x20', '250', 'pc', 'Maria Santos', 'Urgente', '14/10/2025', 'Produção urgente', '']
-  ]);
-
+  // Aba de dados: coluna Nº Remessa apenas para perfil Salto
+  const headers = ['Material', 'Descrição', 'Quantidade', 'Unidade', 'Solicitante', 'Urgencia', 'Prazo', 'Justificativa'];
+  const row1 = ['MP001', 'Matéria-Prima X123 - Aço inoxidável', '100', 'kg', 'João Silva', 'Normal', '20/10/2025', 'Exemplo de justificativa'];
+  const row2 = ['COMP002', 'Componente Y456 - Parafuso M8x20', '250', 'pc', 'Maria Santos', 'Urgente', '14/10/2025', 'Produção urgente'];
+  if (isSalto) {
+    headers.push('Nº Remessa');
+    row1.push('12345');
+    row2.push('');
+  }
+  const wsData = XLSX.utils.aoa_to_sheet([headers, row1, row2]);
   XLSX.utils.book_append_sheet(wb, wsData, 'Solicitações');
 
-  // Aba de instruções
-  const wsInstructions = XLSX.utils.aoa_to_sheet([
+  // Aba de instruções (texto de Nº Remessa só para Salto)
+  const instrucoes = [
     ['INSTRUÇÕES PARA IMPORTAÇÃO'],
     [''],
     ['1. Preencha as colunas conforme o exemplo fornecido'],
     ['2. Campos obrigatórios: Material, Descrição, Quantidade, Unidade, Solicitante, Prazo'],
-    ['3. Para perfil Salto: coluna Nº Remessa é OBRIGATÓRIA em todas as linhas'],
-    ['4. Urgencia deve ser: "Normal" ou "Urgente"'],
-    ['5. Datas no formato brasileiro: DD/MM/AAAA (ex: 20/10/2025)'],
-    ['6. Quantidade deve ser um número inteiro positivo'],
-    ['7. Unidade deve ser: "kg", "pc", "m", "l", etc.'],
-    ['8. Máximo de 1000 linhas por importação'],
+    ['3. Urgencia deve ser: "Normal" ou "Urgente"'],
+    ['4. Datas no formato brasileiro: DD/MM/AAAA (ex: 20/10/2025)'],
+    ['5. Quantidade deve ser um número inteiro positivo'],
+    ['6. Unidade deve ser: "kg", "pc", "m", "l", etc.'],
+    ['7. Máximo de 1000 linhas por importação'],
     [''],
     ['DESCRIÇÃO DOS CAMPOS:'],
     [''],
@@ -188,13 +195,15 @@ async function handleGetTemplate(event) {
     ['Solicitante: Nome do solicitante (obrigatório)'],
     ['Urgencia: Normal ou Urgente (opcional, padrão: Normal)'],
     ['Prazo: Data limite para separação (obrigatório)'],
-    ['Justificativa: Motivo da solicitação (opcional)'],
-    ['Nº Remessa: Apenas números. Obrigatório para perfil Salto; opcional para os demais']
-  ]);
-
+    ['Justificativa: Motivo da solicitação (opcional)']
+  ];
+  if (isSalto) {
+    instrucoes.splice(4, 0, ['3. Nº Remessa: coluna OBRIGATÓRIA para perfil Salto; apenas números']);
+    instrucoes.push(['Nº Remessa: Apenas números. Obrigatório para perfil Salto']);
+  }
+  const wsInstructions = XLSX.utils.aoa_to_sheet(instrucoes);
   XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instruções');
 
-  // Converter para buffer
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 
   return {
@@ -520,14 +529,12 @@ exports.handler = withErrorHandling(async (event, context) => {
 
   const path = event.path.replace('/.netlify/functions/import', '').replace('/api/import', '') || '/';
 
-  // Template é público
-  if (path === '/template' && event.httpMethod === 'GET') {
-    return await handleGetTemplate(event);
-  }
-
-  // Outras rotas requerem autenticação
   const sql = getDB();
   const user = await verifyToken(event, sql);
+
+  if (path === '/template' && event.httpMethod === 'GET') {
+    return await handleGetTemplate(event, sql, user);
+  }
 
   if (path === '/validate' && event.httpMethod === 'POST') {
     return await handleValidate(event, sql, user);
