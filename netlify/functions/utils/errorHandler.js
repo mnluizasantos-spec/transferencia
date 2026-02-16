@@ -96,9 +96,19 @@ function handleError(error, context = {}) {
     };
   }
 
-  // Erro genérico
+  // Erro genérico (ex.: erro de banco: coluna inexistente)
   const statusCode = error.statusCode || 500;
   const errorType = error.type || ERROR_TYPES.INTERNAL;
+  const body = {
+    error: {
+      type: errorType,
+      message: getUserFriendlyMessage({ type: errorType }),
+      timestamp: new Date().toISOString()
+    }
+  };
+  if (process.env.NODE_ENV !== 'production' && error && error.message) {
+    body.error.detail = error.message;
+  }
 
   return {
     statusCode,
@@ -106,13 +116,7 @@ function handleError(error, context = {}) {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': '*'
     },
-    body: JSON.stringify({
-      error: {
-        type: errorType,
-        message: getUserFriendlyMessage({ type: errorType }),
-        timestamp: new Date().toISOString()
-      }
-    })
+    body: JSON.stringify(body)
   };
 }
 
