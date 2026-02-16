@@ -237,7 +237,7 @@
                         <input type="text" id="solicitante" required placeholder="Nome do solicitante">
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" id="form-group-entregar-em">
                         <label for="entregar-em">Entregar em *</label>
                         <select id="entregar-em" required>
                             <option value="">Selecione</option>
@@ -850,6 +850,12 @@
         function isSaltoUser(user) {
             return user && (user.email === 'salto@antilhas.com' || (user.name && user.name.trim() === 'Salto') || (user.nome && user.nome.trim() === 'Salto'));
         }
+        function isFlexiveisUser(user) {
+            return user && (user.email === 'flexiveis@antilhas.com' || (user.name && user.name.trim() === 'Flexíveis') || (user.nome && user.nome.trim() === 'Flexíveis'));
+        }
+        function isDefaultSolicitante(user) {
+            return user && user.role === 'solicitante' && !isSaltoUser(user) && !isFlexiveisUser(user);
+        }
         function isSaltoRequest(req) {
             if (!req) return false;
             const name = req.solicitante_nome || req.requester_name;
@@ -862,8 +868,22 @@
             document.getElementById('modal-subtitle').textContent = 'Preencha os dados para criar uma nova solicitação';
             document.getElementById('request-form').reset();
             document.getElementById('request-id').value = '';
-            document.getElementById('entregar-em').value = '';
             const user = getCurrentUser();
+            const entregarEmGroup = document.getElementById('form-group-entregar-em');
+            const entregarEmSelect = document.getElementById('entregar-em');
+            if (isSaltoUser(user)) {
+                entregarEmSelect.value = 'Salto';
+                if (entregarEmGroup) entregarEmGroup.style.display = 'none';
+            } else if (isFlexiveisUser(user)) {
+                entregarEmSelect.value = 'Flexiveis';
+                if (entregarEmGroup) entregarEmGroup.style.display = 'none';
+            } else if (isDefaultSolicitante(user)) {
+                entregarEmSelect.value = 'Grafica';
+                if (entregarEmGroup) entregarEmGroup.style.display = 'none';
+            } else {
+                entregarEmSelect.value = '';
+                if (entregarEmGroup) entregarEmGroup.style.display = 'block';
+            }
             const showNumeroRemessa = isSaltoUser(user);
             document.getElementById('form-group-numero-remessa').style.display = showNumeroRemessa ? 'block' : 'none';
             const numeroRemessaInput = document.getElementById('numero-remessa');
@@ -900,6 +920,9 @@
             document.getElementById('justificativa').value = request.justificativa || '';
 
             const user = getCurrentUser();
+            const canChooseEntregarEm = user && (user.role === 'admin' || user.role === 'separador');
+            const entregarEmGroup = document.getElementById('form-group-entregar-em');
+            if (entregarEmGroup) entregarEmGroup.style.display = canChooseEntregarEm ? 'block' : 'none';
             const isSaltoReq = isSaltoRequest(request);
             const showNumeroRemessa = isSaltoReq || (user && (user.role === 'separador' || user.role === 'admin'));
             document.getElementById('form-group-numero-remessa').style.display = showNumeroRemessa ? 'block' : 'none';
