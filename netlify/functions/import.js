@@ -402,9 +402,7 @@ async function handleExecute(event, sql, user) {
         throw new Error(rowErrors.join('; '));
       }
 
-      // Salto/Flexíveis: usar sempre o nome do usuário logado para as linhas aparecerem na listagem dele
-      // Demais perfis: NOME DO SOLICITANTE = exatamente o valor preenchido no Excel (só trim de espaços nas pontas)
-      const isSaltoOuFlexiveis = user.role === 'solicitante' && user.email !== 'solicitante@antilhas.com';
+      // Solicitante = exatamente o valor preenchido na coluna Solicitante do Excel (só trim de espaços nas pontas)
       let solicitanteFromFile = getCellValue(row, ['Solicitante', 'solicitante', 'SOLICITANTE'], 'solicitante');
       if (solicitanteFromFile == null || solicitanteFromFile === '') {
         // Fallback: percorrer todas as colunas e usar a que corresponder ao cabeçalho "Solicitante"
@@ -424,9 +422,7 @@ async function handleExecute(event, sql, user) {
           solicitanteFromFile = (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : null;
         }
       }
-      const solicitanteName = isSaltoOuFlexiveis
-        ? (user.name || user.nome || '').toString().trim()
-        : (solicitanteFromFile != null && solicitanteFromFile !== '' ? solicitanteFromFile : null);
+      const solicitanteName = (solicitanteFromFile != null && solicitanteFromFile !== '') ? solicitanteFromFile : null;
 
       // Local de entrega: Salto/Flexíveis conforme perfil do usuário; Gráfica/admin/separador ficam null (exibe como Gráfica)
       const meuNome = (user.name || user.nome || '').toString().trim();
