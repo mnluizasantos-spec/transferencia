@@ -118,18 +118,14 @@ async function handleList(event, sql, user) {
       const meuNome = (user.name || user.nome || '').toString().trim();
       if (meuNome) {
         if (user.email === 'solicitante@antilhas.com') {
-          // Perfil Gráfica: ver tudo que NÃO seja Salto nem Flexíveis
+          // Perfil Gráfica: ver apenas solicitações para entregar em Gráfica (null ou Grafica)
           allRequests = allRequests.filter(r => {
-            const n = (r.requester_name || '').toString().trim();
-            return n !== 'Salto' && n !== 'Flexíveis' && n !== 'Flexiveis';
+            const em = (r.entregar_em || '').toString().trim();
+            return !em || em === 'Grafica';
           });
         } else if (user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis') {
-          // Perfil Flexíveis: ver apenas solicitações entregar em Flexíveis (requester_name e entregar_em)
-          allRequests = allRequests.filter(r => {
-            const n = (r.requester_name || '').toString().trim();
-            const entregarEm = (r.entregar_em || '').toString().trim();
-            return (n === 'Flexíveis' || n === 'Flexiveis') && entregarEm === 'Flexiveis';
-          });
+          // Perfil Flexíveis: ver todas as solicitações com Entregar em = Flexíveis (independente do solicitante)
+          allRequests = allRequests.filter(r => (r.entregar_em || '').toString().trim() === 'Flexiveis');
         } else {
           // Perfil Salto ou outro: match exato
           allRequests = allRequests.filter(r => r.requester_name && r.requester_name.trim() === meuNome);
@@ -184,7 +180,7 @@ async function handleGet(event, sql, user) {
     throw notFoundError('Solicitação');
   }
 
-  // Solicitantes só podem ver solicitações do próprio perfil (e Flexíveis só vê entregar em Flexíveis)
+  // Solicitantes só podem ver solicitações do próprio perfil (Flexíveis vê todas com Entregar em Flexíveis)
   const meuNome = (user.name || user.nome || '').toString().trim();
   if (user.role === 'solicitante') {
     const isGraficaUser = user.email === 'solicitante@antilhas.com';
@@ -192,9 +188,9 @@ async function handleGet(event, sql, user) {
     const reqName = (request.requester_name || '').toString().trim();
     const entregarEm = (request.entregar_em || '').toString().trim();
     const canAccess = isGraficaUser
-      ? (reqName !== 'Salto' && reqName !== 'Flexíveis' && reqName !== 'Flexiveis')
+      ? (!entregarEm || entregarEm === 'Grafica')
       : isFlexiveisUser
-        ? ((reqName === 'Flexíveis' || reqName === 'Flexiveis') && entregarEm === 'Flexiveis')
+        ? (entregarEm === 'Flexiveis')
         : (meuNome && reqName === meuNome);
     if (!canAccess) throw notFoundError('Solicitação');
   }
