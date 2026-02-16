@@ -45,13 +45,14 @@ async function verifyToken(event, sql) {
       throw authenticationError('Sessão inválida ou expirada');
     }
 
-    // Verificar se usuário ainda existe
+    // Verificar se usuário ainda existe (buscar name e nome do banco para consistência)
     const [user] = await sql`
       SELECT 
         u.id, 
         u.email, 
         u.role,
-        u.name
+        u.name,
+        u.nome
       FROM users u
       WHERE u.id = ${decoded.userId} 
       AND u.deleted_at IS NULL
@@ -62,13 +63,14 @@ async function verifyToken(event, sql) {
     }
 
     // Verificar se conta não está deletada (ativo é verificado via deleted_at)
+    const name = (user.name || user.nome || decoded.name || decoded.nome || '').toString().trim();
 
     return {
       userId: decoded.userId,
       email: decoded.email,
       role: decoded.role,
-      name: decoded.name || decoded.nome,
-      nome: decoded.name || decoded.nome
+      name,
+      nome: name
     };
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
