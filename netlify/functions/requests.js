@@ -127,8 +127,8 @@ async function handleList(event, sql, user) {
           // Perfil Flexíveis: ver todas as solicitações com Entregar em = Flexíveis (independente do solicitante)
           allRequests = allRequests.filter(r => (r.entregar_em || '').toString().trim() === 'Flexiveis');
         } else {
-          // Perfil Salto ou outro: match exato
-          allRequests = allRequests.filter(r => r.requester_name && r.requester_name.trim() === meuNome);
+          // Perfil Salto: ver todas as solicitações com Entregar em = Salto (independente do solicitante)
+          allRequests = allRequests.filter(r => (r.entregar_em || '').toString().trim() === 'Salto');
         }
       }
     }
