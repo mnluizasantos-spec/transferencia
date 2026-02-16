@@ -22,10 +22,15 @@ async function apiCall(endpoint, options = {}) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
+    const method = (options.method || 'GET').toUpperCase();
     const config = {
         ...options,
         headers
     };
+    // GET/HEAD não devem enviar body (evita erro em alguns ambientes)
+    if (method === 'GET' || method === 'HEAD') {
+        delete config.body;
+    }
 
     try {
         const response = await fetch(`${API_BASE}${endpoint}`, config);
@@ -62,6 +67,9 @@ async function apiCall(endpoint, options = {}) {
         return data;
     } catch (error) {
         console.error('API call error:', error);
+        if (error.name === 'TypeError' && error.message && error.message.toLowerCase().includes('fetch')) {
+            throw new Error('Erro de rede. Verifique a conexão ou se o servidor está acessível.');
+        }
         throw error;
     }
 }
