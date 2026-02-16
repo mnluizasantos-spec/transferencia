@@ -48,7 +48,7 @@ Cada usuário tem sua própria senha (hashes bcrypt 10 rounds):
 |-----------|------------------------|--------------------|
 | Admin     | admin@antilhas.com     | admin123           |
 | Separador | separador@antilhas.com | sep@rador@ntilhas  |
-| Solicitante | solicitante@antilhas.com | solicit@m@t     |
+| Gráfica     | solicitante@antilhas.com | solicit@m@t     |
 | Flexíveis | flexiveis@antilhas.com | Flexiveis#2025     |
 | Salto     | salto@antilhas.com     | Salto#2025         |
 
