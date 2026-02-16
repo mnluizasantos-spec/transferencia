@@ -33,7 +33,6 @@
     <!-- Navigation -->
     <nav class="app-nav">
         <div class="nav-container">
-            <a href="#dashboard" class="nav-link active" onclick="showTab('dashboard')">📊 Dashboard</a>
             <a href="#imports" class="nav-link" id="tab-imports" style="display:none" onclick="showTab('imports')">📥 Importações</a>
         </div>
     </nav>
@@ -205,6 +204,7 @@
     <!-- Imports Section (Admin only) -->
     <div id="imports-section" class="container" style="display: none;">
         <div class="section-header">
+            <a href="#" class="back-link" onclick="showTab('dashboard'); return false;">← Voltar às solicitações</a>
             <h2>📥 Importações</h2>
             <p>Lotes de importação e arquivos originais</p>
         </div>
@@ -451,10 +451,14 @@
                 }
             }
 
-            // Mostrar aba Importações apenas para admin
+            // Mostrar aba Importações e a barra de nav apenas para admin
+            const appNav = document.querySelector('.app-nav');
             if (user.role === 'admin') {
                 const tab = document.getElementById('tab-imports');
                 if (tab) tab.style.display = '';
+                if (appNav) appNav.style.display = '';
+            } else {
+                if (appNav) appNav.style.display = 'none';
             }
             // Mostrar filtro "Entregar em" apenas para separador e admin
             const filterGroupEntregarEm = document.getElementById('filter-group-entregar-em');
@@ -1624,7 +1628,6 @@
             document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
             if (tabName === 'dashboard') {
                 document.getElementById('dashboard-section').style.display = 'block';
-                document.querySelector('.nav-link[href="#dashboard"]').classList.add('active');
             } else if (tabName === 'imports') {
                 document.getElementById('imports-section').style.display = 'block';
                 document.querySelector('.nav-link[href="#imports"]').classList.add('active');
