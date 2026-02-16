@@ -121,9 +121,16 @@ async function handleList(event, sql, user) {
           // Perfil Gráfica: ver tudo que NÃO seja Salto nem Flexíveis
           allRequests = allRequests.filter(r => {
             const n = (r.requester_name || '').toString().trim();
-            return n !== 'Salto' && n !== 'Flexíveis';
+            return n !== 'Salto' && n !== 'Flexíveis' && n !== 'Flexiveis';
+          });
+        } else if (user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis') {
+          // Perfil Flexíveis: ver solicitações com requester_name Flexíveis ou Flexiveis (aceita as duas grafias)
+          allRequests = allRequests.filter(r => {
+            const n = (r.requester_name || '').toString().trim();
+            return n === 'Flexíveis' || n === 'Flexiveis';
           });
         } else {
+          // Perfil Salto ou outro: match exato
           allRequests = allRequests.filter(r => r.requester_name && r.requester_name.trim() === meuNome);
         }
       }
@@ -180,10 +187,13 @@ async function handleGet(event, sql, user) {
   const meuNome = (user.name || user.nome || '').toString().trim();
   if (user.role === 'solicitante') {
     const isGraficaUser = user.email === 'solicitante@antilhas.com';
+    const isFlexiveisUser = user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis';
     const reqName = (request.requester_name || '').toString().trim();
     const canAccess = isGraficaUser
-      ? (reqName !== 'Salto' && reqName !== 'Flexíveis')
-      : (meuNome && reqName === meuNome);
+      ? (reqName !== 'Salto' && reqName !== 'Flexíveis' && reqName !== 'Flexiveis')
+      : isFlexiveisUser
+        ? (reqName === 'Flexíveis' || reqName === 'Flexiveis')
+        : (meuNome && reqName === meuNome);
     if (!canAccess) throw notFoundError('Solicitação');
   }
 
