@@ -183,7 +183,7 @@
                         <th>Descrição</th>
                         <th>Solicitante</th>
                         <th>Entregar em</th>
-                        <th>Nº Remessa</th>
+                        <th id="th-remessa">Nº Remessa</th>
                         <th>Qtd/Unid</th>
                         <th>Status</th>
                         <th>Observação</th>
@@ -459,6 +459,10 @@
             // Mostrar filtro "Entregar em" apenas para separador e admin
             const filterGroupEntregarEm = document.getElementById('filter-group-entregar-em');
             if (filterGroupEntregarEm) filterGroupEntregarEm.style.display = (user.role === 'admin' || user.role === 'separador') ? '' : 'none';
+            // Coluna Nº Remessa apenas para Salto, admin e separador (não Gráfica nem Flexíveis)
+            const showRemessaColumn = user.role === 'admin' || user.role === 'separador' || user.email === 'salto@antilhas.com' || (user.name && user.name.trim() === 'Salto') || (user.nome && user.nome.trim() === 'Salto');
+            const thRemessa = document.getElementById('th-remessa');
+            if (thRemessa) thRemessa.style.display = showRemessaColumn ? '' : 'none';
         }
 
         function setupEventListeners() {
@@ -678,7 +682,7 @@
                     <td>${req.material_description || '-'}</td>
                     <td>${reqName}</td>
                     <td>${entregarEmLabel(req.entregar_em)}</td>
-                    <td>${req.numero_remessa || '-'}</td>
+                    <td class="td-remessa">${req.numero_remessa || '-'}</td>
                     <td>${Math.ceil(Number(req.quantidade)).toLocaleString('pt-BR')} ${req.unidade || ''}</td>
                     <td>
                         <span class="badge ${req.status.toLowerCase().replace(' ', '-')}">${req.status}</span>
@@ -692,6 +696,13 @@
                 </tr>
             `;
             }).join('');
+
+            // Visibilidade da coluna Nº Remessa: só Salto, admin e separador
+            const user = getCurrentUser();
+            const showRemessaCol = user && (user.role === 'admin' || user.role === 'separador' || user.email === 'salto@antilhas.com' || (user.name && user.name.trim() === 'Salto') || (user.nome && user.nome.trim() === 'Salto'));
+            const thRem = document.getElementById('th-remessa');
+            if (thRem) thRem.style.display = showRemessaCol ? '' : 'none';
+            document.querySelectorAll('.td-remessa').forEach(td => { td.style.display = showRemessaCol ? '' : 'none'; });
 
             // Adicionar event listeners aos checkboxes
             document.querySelectorAll('.row-checkbox').forEach(cb => {
