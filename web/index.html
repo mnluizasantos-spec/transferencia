@@ -1521,9 +1521,12 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    alert(`Importação concluída!\nSucessos: ${result.successCount}\nErros: ${result.errorCount}`);
-                    if (result.errors && result.errors.length > 0) {
-                        console.log('Erros de importação:', result.errors);
+                    const sucessos = result.imported ?? result.successCount ?? 0;
+                    const erros = result.errors ?? result.errorCount ?? 0;
+                    alert(`Importação concluída!\nSucessos: ${sucessos}\nErros: ${erros}`);
+                    const detalhes = result.details ?? result.errors;
+                    if (Array.isArray(detalhes) && detalhes.length > 0) {
+                        console.log('Erros de importação:', detalhes);
                     }
                     loadRequests(); // Recarregar lista
                 } else {
