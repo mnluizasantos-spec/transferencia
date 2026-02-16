@@ -134,11 +134,11 @@ async function handleGetTemplate(event) {
   // Criar workbook
   const wb = XLSX.utils.book_new();
 
-  // Aba de dados
+  // Aba de dados (Nº Remessa obrigatório apenas para perfil Salto)
   const wsData = XLSX.utils.aoa_to_sheet([
-    ['Material', 'Descrição', 'Quantidade', 'Unidade', 'Solicitante', 'Urgencia', 'Prazo', 'Justificativa'],
-    ['MP001', 'Matéria-Prima X123 - Aço inoxidável', '100', 'kg', 'João Silva', 'Normal', '20/10/2025', 'Exemplo de justificativa'],
-    ['COMP002', 'Componente Y456 - Parafuso M8x20', '250', 'pc', 'Maria Santos', 'Urgente', '14/10/2025', 'Produção urgente']
+    ['Material', 'Descrição', 'Quantidade', 'Unidade', 'Solicitante', 'Urgencia', 'Prazo', 'Justificativa', 'Nº Remessa'],
+    ['MP001', 'Matéria-Prima X123 - Aço inoxidável', '100', 'kg', 'João Silva', 'Normal', '20/10/2025', 'Exemplo de justificativa', '12345'],
+    ['COMP002', 'Componente Y456 - Parafuso M8x20', '250', 'pc', 'Maria Santos', 'Urgente', '14/10/2025', 'Produção urgente', '']
   ]);
 
   XLSX.utils.book_append_sheet(wb, wsData, 'Solicitações');
@@ -149,11 +149,12 @@ async function handleGetTemplate(event) {
     [''],
     ['1. Preencha as colunas conforme o exemplo fornecido'],
     ['2. Campos obrigatórios: Material, Descrição, Quantidade, Unidade, Solicitante, Prazo'],
-    ['3. Urgencia deve ser: "Normal" ou "Urgente"'],
-    ['4. Datas no formato brasileiro: DD/MM/AAAA (ex: 20/10/2025)'],
-    ['5. Quantidade deve ser um número inteiro positivo'],
-    ['6. Unidade deve ser: "kg", "pc", "m", "l", etc.'],
-    ['7. Máximo de 1000 linhas por importação'],
+    ['3. Para perfil Salto: coluna Nº Remessa é OBRIGATÓRIA em todas as linhas'],
+    ['4. Urgencia deve ser: "Normal" ou "Urgente"'],
+    ['5. Datas no formato brasileiro: DD/MM/AAAA (ex: 20/10/2025)'],
+    ['6. Quantidade deve ser um número inteiro positivo'],
+    ['7. Unidade deve ser: "kg", "pc", "m", "l", etc.'],
+    ['8. Máximo de 1000 linhas por importação'],
     [''],
     ['DESCRIÇÃO DOS CAMPOS:'],
     [''],
@@ -164,7 +165,8 @@ async function handleGetTemplate(event) {
     ['Solicitante: Nome do solicitante (obrigatório)'],
     ['Urgencia: Normal ou Urgente (opcional, padrão: Normal)'],
     ['Prazo: Data limite para separação (obrigatório)'],
-    ['Justificativa: Motivo da solicitação (opcional)']
+    ['Justificativa: Motivo da solicitação (opcional)'],
+    ['Nº Remessa: Apenas números. Obrigatório para perfil Salto; opcional para os demais']
   ]);
 
   XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instruções');
@@ -365,6 +367,27 @@ async function handleExecute(event, sql, user) {
         ? (user.name || user.nome || '').toString().trim()
         : (row.Solicitante || row.solicitante);
 
+      // Local de entrega: Salto/Flexíveis conforme perfil do usuário; Gráfica/admin/separador ficam null (exibe como Gráfica)
+      const meuNome = (user.name || user.nome || '').toString().trim();
+      const entregarEm = meuNome === 'Salto' ? 'Salto' : (meuNome === 'Flexíveis' ? 'Flexiveis' : null);
+
+      // Nº Remessa: obrigatório para perfil Salto; somente numérico
+      const numeroRemessaRaw = (row['Nº Remessa'] ?? row.Remessa ?? row.numero_remessa ?? '').toString().trim();
+      const numeroRemessa = numeroRemessaRaw.length > 0 ? numeroRemessaRaw : null;
+      if (meuNome === 'Salto') {
+        if (!numeroRemessa || numeroRemessa.length === 0) {
+          throw new Error('Nº Remessa é obrigatório para importação do perfil Salto. Preencha a coluna "Nº Remessa" no Excel.');
+        }
+        if (!/^\d+$/.test(numeroRemessa)) {
+          throw new Error('Nº Remessa deve conter apenas números (ex.: 12345).');
+        }
+        if (numeroRemessa.length > 100) {
+          throw new Error('Nº Remessa deve ter no máximo 100 caracteres.');
+        }
+      } else if (numeroRemessa !== null && !/^\d+$/.test(numeroRemessa)) {
+        throw new Error('Nº Remessa deve conter apenas números.');
+      }
+
       // Usar função robusta de parsing de quantidade
       const rawQty = row.Quantidade ?? row.quantidade ?? '';
       const parsedQty = parseQuantity(rawQty);
@@ -376,7 +399,7 @@ async function handleExecute(event, sql, user) {
       // Criar solicitação
       const [request] = await sql`
         INSERT INTO material_requests 
-          (material_code, material_description, quantidade, unidade, justificativa, requester_name, urgencia, deadline, status, created_by)
+          (material_code, material_description, quantidade, unidade, justificativa, requester_name, urgencia, deadline, status, created_by, entregar_em, numero_remessa)
         VALUES 
           (${row.Material || row.material},
            ${row.Descrição || row.Descricao || row.descrição || row.descricao},
@@ -387,7 +410,9 @@ async function handleExecute(event, sql, user) {
            ${row.Urgencia || row.urgencia || 'Normal'},
            ${parseExcelDate(row.Prazo || row.prazo)},
            'Pendente',
-           ${user.userId})
+           ${user.userId},
+           ${entregarEm},
+           ${numeroRemessa})
         RETURNING id
       `;
 
