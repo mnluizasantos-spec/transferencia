@@ -402,8 +402,18 @@ function validateMaterialCode(materialCode, rowNumber) {
   return { valid: true, value: trimmed };
 }
 
+/** Normaliza cabeçalho para comparação: minúsculas, sem acentos, sem espaços */
+function normalizeImportHeader(s) {
+  return String(s)
+    .normalize('NFD')
+    .replace(/\u0300-\u036f/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '');
+}
+
 /**
- * Obtém valor de célula por chaves possíveis ou por nome normalizado (case-insensitive, sem espaços)
+ * Obtém valor de célula por chaves possíveis ou por nome normalizado (case-insensitive, sem acentos)
  */
 function getImportCell(row, possibleKeys, normalizedName) {
   for (const k of possibleKeys) {
@@ -411,9 +421,9 @@ function getImportCell(row, possibleKeys, normalizedName) {
     if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
   }
   if (normalizedName) {
-    const target = normalizedName.toLowerCase().replace(/\s+/g, '');
+    const target = normalizeImportHeader(normalizedName);
     for (const key of Object.keys(row)) {
-      if (String(key).toLowerCase().trim().replace(/\s+/g, '') === target) {
+      if (normalizeImportHeader(key) === target) {
         const val = row[key];
         if (val !== undefined && val !== null && String(val).trim() !== '') return String(val).trim();
         return '';
