@@ -171,8 +171,14 @@ function validateRequestData(data, isUpdate = false) {
     errors.push('Entregar em deve ser: Gráfica, Salto ou Flexíveis');
   }
 
-  if (data.numero_remessa && data.numero_remessa.length > 100) {
-    errors.push('Número da remessa deve ter no máximo 100 caracteres');
+  if (data.numero_remessa != null && data.numero_remessa !== '') {
+    const nr = String(data.numero_remessa).trim();
+    if (nr.length > 100) {
+      errors.push('Número da remessa deve ter no máximo 100 caracteres');
+    }
+    if (!/^\d+$/.test(nr)) {
+      errors.push('Número da remessa deve conter apenas dígitos (campo numérico)');
+    }
   }
   // Nº Remessa obrigatório apenas para solicitações do perfil Salto (criação)
   if (!isUpdate && data.requester_name && String(data.requester_name).trim() === 'Salto') {
