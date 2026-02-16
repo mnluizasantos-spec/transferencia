@@ -29,7 +29,7 @@ async function handleStats(event, sql, user) {
           COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vencem_hoje
         FROM material_requests
         WHERE deleted_at IS NULL
-          AND COALESCE(TRIM(requester_name), '') NOT IN ('Salto', 'Flexíveis', 'Flexiveis')
+          AND (entregar_em IS NULL OR entregar_em = 'Grafica')
       `;
     } else if (isSolicitante && (user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis')) {
       [stats] = await sql`
@@ -40,7 +40,7 @@ async function handleStats(event, sql, user) {
           COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as atrasados,
           COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vencem_hoje
         FROM material_requests
-        WHERE deleted_at IS NULL AND TRIM(requester_name) IN ('Flexíveis', 'Flexiveis') AND entregar_em = 'Flexiveis'
+        WHERE deleted_at IS NULL AND entregar_em = 'Flexiveis'
       `;
     } else if (isSolicitante) {
       [stats] = await sql`
@@ -103,7 +103,7 @@ async function handleUrgentes(event, sql, user) {
       WHERE mr.deleted_at IS NULL
       AND mr.urgencia = 'Urgente'
       AND mr.status != 'Concluído'
-      AND COALESCE(TRIM(mr.requester_name), '') NOT IN ('Salto', 'Flexíveis', 'Flexiveis')
+      AND (mr.entregar_em IS NULL OR mr.entregar_em = 'Grafica')
       ORDER BY mr.deadline ASC NULLS LAST, mr.created_at ASC
     `;
   } else if (user.role === 'solicitante') {
@@ -113,7 +113,7 @@ async function handleUrgentes(event, sql, user) {
         SELECT mr.*, mr.requester_name as solicitante_nome
         FROM material_requests mr
         WHERE mr.deleted_at IS NULL AND mr.urgencia = 'Urgente' AND mr.status != 'Concluído'
-        AND TRIM(mr.requester_name) IN ('Flexíveis', 'Flexiveis') AND mr.entregar_em = 'Flexiveis'
+        AND mr.entregar_em = 'Flexiveis'
         ORDER BY mr.deadline ASC NULLS LAST, mr.created_at ASC
       `;
     } else {
@@ -166,7 +166,7 @@ async function handleTrends(event, sql, user) {
       FROM material_requests
       WHERE deleted_at IS NULL
       AND created_at >= CURRENT_DATE - INTERVAL '30 days'
-      AND COALESCE(TRIM(requester_name), '') NOT IN ('Salto', 'Flexíveis', 'Flexiveis')
+      AND (entregar_em IS NULL OR entregar_em = 'Grafica')
       GROUP BY DATE(created_at)
       ORDER BY data DESC
     `;
@@ -182,7 +182,7 @@ async function handleTrends(event, sql, user) {
         FROM material_requests
         WHERE deleted_at IS NULL
         AND created_at >= CURRENT_DATE - INTERVAL '30 days'
-        AND TRIM(requester_name) IN ('Flexíveis', 'Flexiveis') AND entregar_em = 'Flexiveis'
+        AND entregar_em = 'Flexiveis'
         GROUP BY DATE(created_at)
         ORDER BY data DESC
       `;
