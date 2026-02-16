@@ -124,10 +124,11 @@ async function handleList(event, sql, user) {
             return n !== 'Salto' && n !== 'Flexíveis' && n !== 'Flexiveis';
           });
         } else if (user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis') {
-          // Perfil Flexíveis: ver solicitações com requester_name Flexíveis ou Flexiveis (aceita as duas grafias)
+          // Perfil Flexíveis: ver apenas solicitações entregar em Flexíveis (requester_name e entregar_em)
           allRequests = allRequests.filter(r => {
             const n = (r.requester_name || '').toString().trim();
-            return n === 'Flexíveis' || n === 'Flexiveis';
+            const entregarEm = (r.entregar_em || '').toString().trim();
+            return (n === 'Flexíveis' || n === 'Flexiveis') && entregarEm === 'Flexiveis';
           });
         } else {
           // Perfil Salto ou outro: match exato
@@ -183,16 +184,17 @@ async function handleGet(event, sql, user) {
     throw notFoundError('Solicitação');
   }
 
-  // Solicitantes só podem ver solicitações do próprio perfil
+  // Solicitantes só podem ver solicitações do próprio perfil (e Flexíveis só vê entregar em Flexíveis)
   const meuNome = (user.name || user.nome || '').toString().trim();
   if (user.role === 'solicitante') {
     const isGraficaUser = user.email === 'solicitante@antilhas.com';
     const isFlexiveisUser = user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis';
     const reqName = (request.requester_name || '').toString().trim();
+    const entregarEm = (request.entregar_em || '').toString().trim();
     const canAccess = isGraficaUser
       ? (reqName !== 'Salto' && reqName !== 'Flexíveis' && reqName !== 'Flexiveis')
       : isFlexiveisUser
-        ? (reqName === 'Flexíveis' || reqName === 'Flexiveis')
+        ? ((reqName === 'Flexíveis' || reqName === 'Flexiveis') && entregarEm === 'Flexiveis')
         : (meuNome && reqName === meuNome);
     if (!canAccess) throw notFoundError('Solicitação');
   }
