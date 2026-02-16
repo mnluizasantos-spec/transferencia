@@ -29,17 +29,34 @@ async function apiCall(endpoint, options = {}) {
 
     try {
         const response = await fetch(`${API_BASE}${endpoint}`, config);
-        
+
         // Se não autorizado, fazer logout
         if (response.status === 401) {
             await logout();
             throw new Error('Sessão expirada');
         }
 
-        const data = await response.json();
+        // Tentar ler o corpo como JSON, mas não falhar se não for JSON
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (e) {
+            console.warn('Falha ao fazer parse do JSON da resposta da API:', e);
+        }
 
         if (!response.ok) {
-            throw new Error(data.error?.message || `Erro ${response.status}`);
+            const baseMessage =
+                data?.error?.message ||
+                data?.message ||
+                `Erro ${response.status}`;
+            const detail =
+                data?.error?.detail ||
+                data?.detail;
+            const fullMessage = detail
+                ? `${baseMessage} – ${detail}`
+                : baseMessage;
+
+            throw new Error(fullMessage);
         }
 
         return data;
