@@ -40,7 +40,32 @@ npm run deploy
 
 Se a pasta ainda não estiver vinculada a um site, escolha "Link this directory to an existing site" e selecione o site. Em seguida o deploy será concluído.
 
-## 4. Se o erro 500 continuar
+## 4. Usuários e senhas (apenas Flexíveis e Salto)
+
+**Admin, Separador e Solicitante** continuam com a senha antiga **admin123**. Apenas os usuários novos **Flexíveis** e **Salto** têm senhas distintas (bcrypt 10 rounds).
+
+**Para os logins Flexíveis e Salto funcionarem no Neon:**
+
+1. No **Neon SQL Editor**, execute o conteúdo de:
+   - `db/update_passwords_neon.sql`  
+   (insere ou atualiza Flexíveis e Salto com as senhas corretas)
+
+2. Ou execute todo o seed: `db/seed_users.sql` (mantém admin123 nos antigos e usa as senhas novas só para Flexíveis e Salto).
+
+**Senhas dos novos usuários:**
+
+| Usuário   | Email                  | Senha inicial  |
+|-----------|------------------------|----------------|
+| Flexíveis | flexiveis@antilhas.com | Flexiveis#2025 |
+| Salto     | salto@antilhas.com     | Salto#2025     |
+
+**Para regenerar apenas os hashes de Flexíveis e Salto** (e reescrever `db/update_passwords_neon.sql` e `db/SENHAS_INICIAIS.md`):
+
+```bash
+npm run generate-passwords
+```
+
+## 5. Se o erro 500 continuar
 
 - Em **produção**: Netlify → Functions → `requests` → abra o log da última execução e veja a mensagem de erro completa.
 - Em **desenvolvimento** (`netlify dev` ou branch deploy com `NODE_ENV !== 'production'`): a resposta 500 em JSON inclui o campo `error.detail` com a mensagem real (ex.: coluna inexistente), o que facilita o ajuste fino.
