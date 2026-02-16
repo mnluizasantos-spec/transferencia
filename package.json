@@ -11,7 +11,8 @@
     "test": "node scripts/data_integrity_check.js",
     "backup": "node scripts/backup.js",
     "migrate": "node scripts/run-migration.js",
-    "soft-delete": "node scripts/run-soft-delete.js"
+    "soft-delete": "node scripts/run-soft-delete.js",
+    "generate-passwords": "node scripts/generate-seed-passwords.js"
   },
   "keywords": [
     "material",
