@@ -174,6 +174,12 @@ function validateRequestData(data, isUpdate = false) {
   if (data.numero_remessa && data.numero_remessa.length > 100) {
     errors.push('Número da remessa deve ter no máximo 100 caracteres');
   }
+  // Nº Remessa obrigatório apenas para solicitações do perfil Salto (criação)
+  if (!isUpdate && data.requester_name && String(data.requester_name).trim() === 'Salto') {
+    if (!data.numero_remessa || String(data.numero_remessa).trim() === '') {
+      errors.push('Número da remessa é obrigatório para solicitações do perfil Salto');
+    }
+  }
 
   if (data.deadline && !isValidDate(data.deadline)) {
     errors.push('Prazo deve ser uma data válida');
