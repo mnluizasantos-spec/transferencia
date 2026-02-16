@@ -492,6 +492,11 @@ table th:nth-child(13), table td:nth-child(13) { width: 180px; } /* Ações */
     padding: 30px;
 }
 
+/* Dashboard principal: usar largura total da tela */
+#dashboard-section.container {
+    max-width: 100%;
+}
+
 /* ============================================================================
    STATS CARDS
    ============================================================================ */
@@ -627,7 +632,10 @@ textarea {
     background: var(--white);
     border-radius: 12px;
     box-shadow: var(--shadow);
-    overflow: hidden;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 table {
@@ -881,6 +889,12 @@ tbody tr.row-flexiveis-salto:hover {
 
     th, td {
         padding: 10px;
+    }
+
+    /* Em telas menores, garantir rolagem horizontal da tabela em vez de cortar colunas */
+    .table-container {
+        overflow-x: auto;
+        overflow-y: hidden;
     }
 
     .header-content {
