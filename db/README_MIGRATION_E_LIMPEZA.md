@@ -40,26 +40,23 @@ npm run deploy
 
 Se a pasta ainda não estiver vinculada a um site, escolha "Link this directory to an existing site" e selecione o site. Em seguida o deploy será concluído.
 
-## 4. Usuários e senhas (apenas Flexíveis e Salto)
+## 4. Usuários e senhas
 
-**Admin, Separador e Solicitante** continuam com a senha antiga **admin123**. Apenas os usuários novos **Flexíveis** e **Salto** têm senhas distintas (bcrypt 10 rounds).
+Cada usuário tem sua própria senha (hashes bcrypt 10 rounds):
 
-**Para os logins Flexíveis e Salto funcionarem no Neon:**
+| Usuário   | Email                  | Senha              |
+|-----------|------------------------|--------------------|
+| Admin     | admin@antilhas.com     | admin123           |
+| Separador | separador@antilhas.com | sep@rador@ntilhas  |
+| Solicitante | solicitante@antilhas.com | solicit@m@t     |
+| Flexíveis | flexiveis@antilhas.com | Flexiveis#2025     |
+| Salto     | salto@antilhas.com     | Salto#2025         |
 
-1. No **Neon SQL Editor**, execute o conteúdo de:
-   - `db/update_passwords_neon.sql`  
-   (insere ou atualiza Flexíveis e Salto com as senhas corretas)
+**Para atualizar todas as senhas no Neon:** execute no Neon SQL Editor o conteúdo de `db/update_passwords_neon.sql` (insere/atualiza os 5 usuários com os hashes corretos).
 
-2. Ou execute todo o seed: `db/seed_users.sql` (mantém admin123 nos antigos e usa as senhas novas só para Flexíveis e Salto).
+Alternativa: executar todo o `db/seed_users.sql` para (re)criar/atualizar todos.
 
-**Senhas dos novos usuários:**
-
-| Usuário   | Email                  | Senha inicial  |
-|-----------|------------------------|----------------|
-| Flexíveis | flexiveis@antilhas.com | Flexiveis#2025 |
-| Salto     | salto@antilhas.com     | Salto#2025     |
-
-**Para regenerar apenas os hashes de Flexíveis e Salto** (e reescrever `db/update_passwords_neon.sql` e `db/SENHAS_INICIAIS.md`):
+**Para regenerar hashes e reescrever os arquivos:**
 
 ```bash
 npm run generate-passwords
