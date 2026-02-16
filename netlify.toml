@@ -60,4 +60,8 @@
 [context.branch-deploy]
   environment = { NODE_ENV = "development" }
 
+# Purge automático: solicitações com mais de 45 dias (soft delete), roda todo dia à meia-noite UTC
+[functions.purge-old-requests]
+  schedule = "@daily"
+
 
