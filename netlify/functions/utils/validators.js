@@ -164,6 +164,17 @@ function validateRequestData(data, isUpdate = false) {
     errors.push('Status inválido');
   }
 
+  // entregar_em é obrigatório na criação; opções: Gráfica, Salto, Flexíveis
+  if (!isUpdate && (!data.entregar_em || data.entregar_em.trim() === '')) {
+    errors.push('Entregar em é obrigatório');
+  } else if (data.entregar_em && !isValidOption(data.entregar_em, ['Grafica', 'Salto', 'Flexiveis'])) {
+    errors.push('Entregar em deve ser: Gráfica, Salto ou Flexíveis');
+  }
+
+  if (data.numero_remessa && data.numero_remessa.length > 100) {
+    errors.push('Número da remessa deve ter no máximo 100 caracteres');
+  }
+
   if (data.deadline && !isValidDate(data.deadline)) {
     errors.push('Prazo deve ser uma data válida');
   }
@@ -201,7 +212,9 @@ function validateRequestData(data, isUpdate = false) {
     deadline: adjustedDeadline || (isUpdate ? undefined : null),
     production_start_date: data.production_start_date || (isUpdate ? undefined : null),
     justificativa: data.justificativa && data.justificativa.trim() !== '' ? sanitizeString(data.justificativa) : null,
-    created_by: data.created_by // Passar created_by sem validação
+    created_by: data.created_by,
+    entregar_em: data.entregar_em ? data.entregar_em.trim() : (isUpdate ? undefined : null),
+    numero_remessa: data.numero_remessa != null && data.numero_remessa !== '' ? sanitizeString(String(data.numero_remessa)) : (isUpdate ? undefined : null)
   };
 
   // Filtrar undefined em updates
