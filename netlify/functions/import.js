@@ -11,6 +11,29 @@ const { validateImportRow, validateFileSize, getClientIP, getUserAgent, parseBra
 const { logInfo, logAudit } = require('./utils/logger');
 
 /**
+ * Obtém valor de célula do Excel tentando várias chaves e fallback case-insensitive
+ * (evita perder valor quando o cabeçalho vem com grafia diferente, ex.: "Solicitante " ou "solicitante")
+ */
+function getCellValue(row, possibleKeys, normalizedKey) {
+  for (const k of possibleKeys) {
+    const v = row[k];
+    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+  }
+  if (normalizedKey) {
+    const target = normalizedKey.toLowerCase().replace(/\s+/g, '');
+    for (const key of Object.keys(row)) {
+      const n = String(key).toLowerCase().trim().replace(/\s+/g, '');
+      if (n === target) {
+        const val = row[key];
+        if (val !== undefined && val !== null && String(val).trim() !== '') return String(val).trim();
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Função robusta para parsing de quantidades
  * Detecta formato brasileiro vs internacional e converte corretamente
  * @param {any} value - Valor da quantidade (pode ser string ou número)
@@ -362,10 +385,12 @@ async function handleExecute(event, sql, user) {
       }
 
       // Salto/Flexíveis: usar sempre o nome do usuário logado para as linhas aparecerem na listagem dele
+      // Demais perfis: usar exatamente o valor preenchido na coluna Solicitante do Excel (várias grafias de cabeçalho)
       const isSaltoOuFlexiveis = user.role === 'solicitante' && user.email !== 'solicitante@antilhas.com';
+      const solicitanteFromFile = getCellValue(row, ['Solicitante', 'solicitante', 'SOLICITANTE'], 'solicitante') || row.Solicitante || row.solicitante;
       const solicitanteName = isSaltoOuFlexiveis
         ? (user.name || user.nome || '').toString().trim()
-        : (row.Solicitante || row.solicitante);
+        : solicitanteFromFile;
 
       // Local de entrega: Salto/Flexíveis conforme perfil do usuário; Gráfica/admin/separador ficam null (exibe como Gráfica)
       const meuNome = (user.name || user.nome || '').toString().trim();
