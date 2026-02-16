@@ -635,7 +635,7 @@
                 return;
             }
 
-            const entregarEmLabel = (v) => ({ Grafica: 'Gráfica', Salto: 'Salto', Flexiveis: 'Flexíveis' }[v] || v || '-');
+            const entregarEmLabel = (v) => ({ Grafica: 'Gráfica', Salto: 'Salto', Flexiveis: 'Flexíveis' }[v] || (v ? v : 'Gráfica'));
             // Destaque em verde para solicitações de Salto e Flexíveis (facilita visualização do separador)
             const isFlexiveisSalto = (name) => (name && (name === 'Flexíveis' || name === 'Salto'));
             tbody.innerHTML = currentRequests.map(req => {
