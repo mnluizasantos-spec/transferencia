@@ -85,43 +85,59 @@
 
         <!-- Controls -->
         <div class="controls-panel">
-            <div class="controls-row">
-                <div class="search-box">
-                    <input type="text" id="search-input" placeholder="🔍 Buscar por material ou solicitante...">
+            <h3 class="filters-panel-title">Filtros</h3>
+            <div class="controls-row filters-row">
+                <div class="filters-group filters-group-main">
+                    <div class="search-box">
+                        <input type="text" id="search-input" placeholder="🔍 Buscar por material ou solicitante...">
+                    </div>
+                    <input type="number" id="filter-id" class="filter-input-id" placeholder="ID" min="1" step="1">
+                    <select id="filter-status" class="filter-select">
+                        <option value="">Todos os Status</option>
+                        <option value="Pendente">Pendente</option>
+                        <option value="Em Separação">Em Separação</option>
+                        <option value="Concluído">Concluído</option>
+                        <option value="Cancelado">Cancelado</option>
+                        <option value="Recusado">Recusado</option>
+                    </select>
+                    <select id="filter-urgencia" class="filter-select">
+                        <option value="">Todas as Urgências</option>
+                        <option value="Urgente">Urgente</option>
+                        <option value="Normal">Normal</option>
+                    </select>
+                    <div id="filter-group-entregar-em" class="filters-group-entregar-em" style="display: none;">
+                        <label for="filter-entregar-em" class="filter-label">Entregar em</label>
+                        <select id="filter-entregar-em" class="filter-select">
+                            <option value="">Todos</option>
+                            <option value="Grafica">Gráfica</option>
+                            <option value="Salto">Salto</option>
+                            <option value="Flexiveis">Flexíveis</option>
+                        </select>
+                    </div>
                 </div>
-                <input type="number" id="filter-id" placeholder="🔢 Filtrar por ID" min="1" step="1" style="width: 150px; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
-                <select id="filter-status">
-                    <option value="">Todos os Status</option>
-                    <option value="Pendente">Pendente</option>
-                    <option value="Em Separação">Em Separação</option>
-                    <option value="Concluído">Concluído</option>
-                    <option value="Cancelado">Cancelado</option>
-                    <option value="Recusado">Recusado</option>
-                </select>
-                <select id="filter-urgencia">
-                    <option value="">Todas as Urgências</option>
-                    <option value="Urgente">Urgente</option>
-                    <option value="Normal">Normal</option>
-                </select>
-                <div class="date-filter-group">
-                    <label for="filter-data-solicitacao-inicio">Data Solicitação:</label>
-                    <input type="date" id="filter-data-solicitacao-inicio" placeholder="De">
-                    <span>até</span>
-                    <input type="date" id="filter-data-solicitacao-fim" placeholder="Até">
+                <div class="filters-group filters-group-dates">
+                    <div class="date-filter-group">
+                        <label for="filter-data-solicitacao-inicio" class="filter-label">Data Solicitação</label>
+                        <input type="date" id="filter-data-solicitacao-inicio" placeholder="De">
+                        <span class="date-sep">até</span>
+                        <input type="date" id="filter-data-solicitacao-fim" placeholder="Até">
+                    </div>
+                    <div class="date-filter-group">
+                        <label for="filter-prazo-inicio" class="filter-label">Prazo</label>
+                        <input type="date" id="filter-prazo-inicio" placeholder="De">
+                        <span class="date-sep">até</span>
+                        <input type="date" id="filter-prazo-fim" placeholder="Até">
+                    </div>
                 </div>
-                <div class="date-filter-group">
-                    <label for="filter-prazo-inicio">Prazo:</label>
-                    <input type="date" id="filter-prazo-inicio" placeholder="De">
-                    <span>até</span>
-                    <input type="date" id="filter-prazo-fim" placeholder="Até">
+                <div class="filters-actions">
+                    <button type="button" class="btn btn-secondary btn-small" onclick="limparFiltros()">Limpar</button>
+                    <button type="button" class="btn btn-secondary btn-small" onclick="downloadTemplate()">Template Excel</button>
+                    <label class="btn btn-info btn-small btn-import">
+                        Importar Excel
+                        <input type="file" id="import-file" accept=".xlsx,.xls" style="display: none;" onchange="handleImportFile(event)">
+                    </label>
+                    <button type="button" class="btn btn-success btn-primary-action" onclick="openRequestModal()">+ Nova Solicitação</button>
                 </div>
-                <button class="btn btn-secondary btn-small" onclick="limparFiltros()">🔄 Limpar Filtros</button>
-                <button class="btn btn-secondary btn-small" onclick="downloadTemplate()">📥 Template Excel</button>
-                <label class="btn btn-info btn-small" style="margin: 0 10px;">
-                    📤 Importar Excel
-                    <input type="file" id="import-file" accept=".xlsx,.xls" style="display: none;" onchange="handleImportFile(event)">
-                </label>
-                <button class="btn btn-success" onclick="openRequestModal()">+ Nova Solicitação</button>
             </div>
         </div>
 
@@ -420,6 +436,9 @@
                 const tab = document.getElementById('tab-imports');
                 if (tab) tab.style.display = '';
             }
+            // Mostrar filtro "Entregar em" apenas para separador e admin
+            const filterGroupEntregarEm = document.getElementById('filter-group-entregar-em');
+            if (filterGroupEntregarEm) filterGroupEntregarEm.style.display = (user.role === 'admin' || user.role === 'separador') ? '' : 'none';
         }
 
         function setupEventListeners() {
@@ -428,6 +447,8 @@
             document.getElementById('filter-id').addEventListener('input', debounce(() => loadRequests(true), 300));
             document.getElementById('filter-status').addEventListener('change', () => loadRequests(true));
             document.getElementById('filter-urgencia').addEventListener('change', () => loadRequests(true));
+            const filterEntregarEm = document.getElementById('filter-entregar-em');
+            if (filterEntregarEm) filterEntregarEm.addEventListener('change', () => loadRequests(true));
             document.getElementById('filter-data-solicitacao-inicio').addEventListener('change', debounce(() => loadRequests(true), 400));
             document.getElementById('filter-data-solicitacao-fim').addEventListener('change', debounce(() => loadRequests(true), 400));
             document.getElementById('filter-prazo-inicio').addEventListener('change', debounce(() => loadRequests(true), 400));
@@ -505,6 +526,8 @@
             const dataSolicitacaoFim = document.getElementById('filter-data-solicitacao-fim').value;
             const prazoInicio = document.getElementById('filter-prazo-inicio').value;
             const prazoFim = document.getElementById('filter-prazo-fim').value;
+            const filterEntregarEmEl = document.getElementById('filter-entregar-em');
+            const entregarEm = filterEntregarEmEl ? filterEntregarEmEl.value : '';
 
             const filters = {
                 page: currentPage,
@@ -514,6 +537,7 @@
             if (filterId) filters.id = filterId;
             if (status) filters.status = status;
             if (urgencia) filters.urgencia = urgencia;
+            if (entregarEm) filters.entregar_em = entregarEm;
             if (dataSolicitacaoInicio) filters.created_at_start = dataSolicitacaoInicio;
             if (dataSolicitacaoFim) filters.created_at_end = dataSolicitacaoFim;
             if (prazoInicio) filters.deadline_start = prazoInicio;
@@ -766,6 +790,8 @@
             document.getElementById('filter-id').value = '';
             document.getElementById('filter-status').value = '';
             document.getElementById('filter-urgencia').value = '';
+            const fe = document.getElementById('filter-entregar-em');
+            if (fe) fe.value = '';
             document.getElementById('filter-data-solicitacao-inicio').value = '';
             document.getElementById('filter-data-solicitacao-fim').value = '';
             document.getElementById('filter-prazo-inicio').value = '';
@@ -776,11 +802,13 @@
         }
 
         function hasActiveFilters() {
+            const fe = document.getElementById('filter-entregar-em');
             return !!(
                 document.getElementById('search-input').value ||
                 document.getElementById('filter-id').value ||
                 document.getElementById('filter-status').value ||
                 document.getElementById('filter-urgencia').value ||
+                (fe && fe.value) ||
                 document.getElementById('filter-data-solicitacao-inicio').value ||
                 document.getElementById('filter-data-solicitacao-fim').value ||
                 document.getElementById('filter-prazo-inicio').value ||
@@ -1145,6 +1173,8 @@
             document.getElementById('filter-id').value = '';
             document.getElementById('filter-status').value = '';
             document.getElementById('filter-urgencia').value = '';
+            const fe = document.getElementById('filter-entregar-em');
+            if (fe) fe.value = '';
             document.getElementById('search-input').value = '';
             document.getElementById('filter-data-solicitacao-inicio').value = '';
             document.getElementById('filter-data-solicitacao-fim').value = '';
@@ -1160,6 +1190,8 @@
             document.getElementById('filter-id').value = '';
             document.getElementById('filter-status').value = '';
             document.getElementById('filter-urgencia').value = '';
+            const fe = document.getElementById('filter-entregar-em');
+            if (fe) fe.value = '';
             document.getElementById('search-input').value = '';
             document.getElementById('filter-data-solicitacao-inicio').value = '';
             document.getElementById('filter-data-solicitacao-fim').value = '';
@@ -1181,6 +1213,8 @@
             document.getElementById('filter-id').value = '';
             document.getElementById('filter-status').value = '';
             document.getElementById('filter-urgencia').value = '';
+            const fe = document.getElementById('filter-entregar-em');
+            if (fe) fe.value = '';
             document.getElementById('search-input').value = '';
             document.getElementById('filter-data-solicitacao-inicio').value = '';
             document.getElementById('filter-data-solicitacao-fim').value = '';
@@ -1200,6 +1234,8 @@
             document.getElementById('filter-id').value = '';
             document.getElementById('filter-status').value = 'Concluído';
             document.getElementById('filter-urgencia').value = '';
+            const fe = document.getElementById('filter-entregar-em');
+            if (fe) fe.value = '';
             document.getElementById('search-input').value = '';
             document.getElementById('filter-data-solicitacao-inicio').value = '';
             document.getElementById('filter-data-solicitacao-fim').value = '';
