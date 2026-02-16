@@ -117,7 +117,12 @@ async function handleList(event, sql, user) {
     if (user.role === 'solicitante') {
       const meuNome = (user.name || user.nome || '').toString().trim();
       if (meuNome) {
-        allRequests = allRequests.filter(r => r.requester_name && r.requester_name.trim() === meuNome);
+        if (user.email === 'solicitante@antilhas.com') {
+          // Perfil Gráfica: incluir requester_name antigo "Solicitante Teste" e atual "Gráfica"
+          allRequests = allRequests.filter(r => r.requester_name && ['Gráfica', 'Solicitante Teste'].includes(r.requester_name.trim()));
+        } else {
+          allRequests = allRequests.filter(r => r.requester_name && r.requester_name.trim() === meuNome);
+        }
       }
     }
 
@@ -170,8 +175,13 @@ async function handleGet(event, sql, user) {
 
   // Solicitantes só podem ver solicitações do próprio perfil
   const meuNome = (user.name || user.nome || '').toString().trim();
-  if (user.role === 'solicitante' && (!meuNome || request.requester_name !== meuNome)) {
-    throw notFoundError('Solicitação');
+  if (user.role === 'solicitante') {
+    const isGraficaUser = user.email === 'solicitante@antilhas.com';
+    const reqName = request.requester_name ? request.requester_name.trim() : '';
+    const canAccess = isGraficaUser
+      ? ['Gráfica', 'Solicitante Teste'].includes(reqName)
+      : (meuNome && reqName === meuNome);
+    if (!canAccess) throw notFoundError('Solicitação');
   }
 
   return {
