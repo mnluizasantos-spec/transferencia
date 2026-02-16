@@ -177,32 +177,30 @@ async function handleLogin(event, sql) {
 
 /**
  * POST /api/auth/logout
- * Encerrar sessão
+ * Encerrar sessão. Aceita token expirado ou ausente (sempre retorna 200 para o cliente poder limpar e redirecionar).
  */
 async function handleLogout(event, sql, user) {
-  const token = event.headers.authorization?.replace('Bearer ', '');
-  
-  if (token) {
-    const tokenHash = hashToken(token);
-    
-    await sql`
-      DELETE FROM sessions 
-      WHERE token_hash = ${tokenHash} AND user_id = ${user.userId}
-    `;
+  if (user && user.userId) {
+    const token = event.headers.authorization?.replace('Bearer ', '');
+    if (token) {
+      const tokenHash = hashToken(token);
+      await sql`
+        DELETE FROM sessions 
+        WHERE token_hash = ${tokenHash} AND user_id = ${user.userId}
+      `;
+    }
+    await logAudit(
+      sql,
+      user.userId,
+      'logout',
+      'users',
+      user.userId,
+      {},
+      getClientIP(event),
+      getUserAgent(event)
+    );
+    logInfo('user_logged_out', { userId: user.userId });
   }
-
-  await logAudit(
-    sql,
-    user.userId,
-    'logout',
-    'users',
-    user.userId,
-    {},
-    getClientIP(event),
-    getUserAgent(event)
-  );
-
-  logInfo('user_logged_out', { userId: user.userId });
 
   return {
     statusCode: 200,
@@ -386,13 +384,21 @@ exports.handler = withErrorHandling(async (event, context) => {
     return await handleLogin(event, sql);
   }
 
-  // Rotas protegidas - requer autenticação
   const { verifyToken } = require('./utils/middleware');
-  const user = await verifyToken(event, sql);
 
+  // Logout: aceitar mesmo com token expirado ou ausente (sempre retornar 200 para o cliente poder limpar e redirecionar)
   if (path === '/logout' && event.httpMethod === 'POST') {
+    let user = null;
+    try {
+      user = await verifyToken(event, sql);
+    } catch (_) {
+      // Token expirado ou inválido: mesmo assim processar logout (resposta 200)
+    }
     return await handleLogout(event, sql, user);
   }
+
+  // Rotas protegidas - requer autenticação
+  const user = await verifyToken(event, sql);
 
   if (path === '/me' && event.httpMethod === 'GET') {
     return await handleMe(event, sql, user);
