@@ -104,7 +104,15 @@ async function handleList(event, sql, user) {
       const endDate = new Date(deadline_end_final);
       allRequests = allRequests.filter(r => r.deadline && new Date(r.deadline) <= endDate);
     }
-    
+
+    // Solicitante só enxerga solicitações do próprio perfil (Salto, Flexíveis ou Gráfica)
+    if (user.role === 'solicitante') {
+      const meuNome = (user.name || user.nome || '').toString().trim();
+      if (meuNome) {
+        allRequests = allRequests.filter(r => r.requester_name && r.requester_name.trim() === meuNome);
+      }
+    }
+
     // Calcular total antes de aplicar paginação
     const total = allRequests.length;
     
@@ -152,8 +160,9 @@ async function handleGet(event, sql, user) {
     throw notFoundError('Solicitação');
   }
 
-  // Solicitantes só podem ver suas próprias solicitações
-  if (user.role === 'solicitante' && request.requester_name !== user.name) {
+  // Solicitantes só podem ver solicitações do próprio perfil
+  const meuNome = (user.name || user.nome || '').toString().trim();
+  if (user.role === 'solicitante' && (!meuNome || request.requester_name !== meuNome)) {
     throw notFoundError('Solicitação');
   }
 
