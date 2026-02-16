@@ -403,12 +403,26 @@ async function handleExecute(event, sql, user) {
       }
 
       // Salto/Flexíveis: usar sempre o nome do usuário logado para as linhas aparecerem na listagem dele
-      // Demais perfis: usar exatamente o valor preenchido na coluna Solicitante do Excel (várias grafias de cabeçalho)
+      // Demais perfis: NOME DO SOLICITANTE = exatamente o valor preenchido no Excel (só trim de espaços nas pontas)
       const isSaltoOuFlexiveis = user.role === 'solicitante' && user.email !== 'solicitante@antilhas.com';
       let solicitanteFromFile = getCellValue(row, ['Solicitante', 'solicitante', 'SOLICITANTE'], 'solicitante');
       if (solicitanteFromFile == null || solicitanteFromFile === '') {
-        const raw = row.Solicitante ?? row.solicitante;
-        solicitanteFromFile = (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : null;
+        // Fallback: percorrer todas as colunas e usar a que corresponder ao cabeçalho "Solicitante"
+        const target = normalizeHeader('solicitante');
+        for (const key of Object.keys(row)) {
+          if (normalizeHeader(key) === target) {
+            const raw = row[key];
+            if (raw !== undefined && raw !== null) {
+              const s = String(raw).trim();
+              if (s !== '') solicitanteFromFile = s;
+            }
+            break;
+          }
+        }
+        if ((solicitanteFromFile == null || solicitanteFromFile === '') && (row.Solicitante != null || row.solicitante != null)) {
+          const raw = row.Solicitante ?? row.solicitante;
+          solicitanteFromFile = (raw !== undefined && raw !== null && String(raw).trim() !== '') ? String(raw).trim() : null;
+        }
       }
       const solicitanteName = isSaltoOuFlexiveis
         ? (user.name || user.nome || '').toString().trim()
