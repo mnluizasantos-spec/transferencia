@@ -403,6 +403,27 @@ function validateMaterialCode(materialCode, rowNumber) {
 }
 
 /**
+ * Obtém valor de célula por chaves possíveis ou por nome normalizado (case-insensitive, sem espaços)
+ */
+function getImportCell(row, possibleKeys, normalizedName) {
+  for (const k of possibleKeys) {
+    const v = row[k];
+    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+  }
+  if (normalizedName) {
+    const target = normalizedName.toLowerCase().replace(/\s+/g, '');
+    for (const key of Object.keys(row)) {
+      if (String(key).toLowerCase().trim().replace(/\s+/g, '') === target) {
+        const val = row[key];
+        if (val !== undefined && val !== null && String(val).trim() !== '') return String(val).trim();
+        return '';
+      }
+    }
+  }
+  return '';
+}
+
+/**
  * Valida dados de importação em massa
  */
 function validateImportRow(row, rowNumber) {
@@ -410,12 +431,12 @@ function validateImportRow(row, rowNumber) {
   
   const errors = [];
 
-  // Verificar campos com diferentes nomes possíveis
+  // Verificar campos com diferentes nomes possíveis (incl. cabeçalhos com grafia diferente)
   const material = row.Material || row.material;
   const descricao = row.Descrição || row.Descricao || row.descrição || row.descricao;
   const quantidade = row.Quantidade || row.quantidade;
   const unidade = row.Unidade || row.unidade;
-  const solicitante = row.Solicitante || row.solicitante;
+  const solicitante = getImportCell(row, ['Solicitante', 'solicitante', 'SOLICITANTE'], 'solicitante') || row.Solicitante || row.solicitante;
   const urgencia = row.Urgencia || row.urgencia;
 
   console.log('Campos extraídos:', {
@@ -451,7 +472,7 @@ function validateImportRow(row, rowNumber) {
   }
 
   // Validar Solicitante
-  if (!solicitante || solicitante.trim() === '') {
+  if (!solicitante || String(solicitante).trim() === '') {
     errors.push(`Linha ${rowNumber}: Solicitante é obrigatório`);
   }
 
