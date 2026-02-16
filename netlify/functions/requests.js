@@ -46,8 +46,9 @@ async function handleList(event, sql, user) {
     const deadline_start = params.deadline_start;
     const deadline_end = params.deadline_end;
     const idFilter = params.id ? parseInt(params.id) : null;
-    
-    console.log('Filtros recebidos:', { page, limit, statusFilter, urgenciaFilter, searchFilter, created_at_start, created_at_end, deadline_start, deadline_end, idFilter });
+    const entregarEmFilter = params.entregar_em;
+
+    console.log('Filtros recebidos:', { page, limit, statusFilter, urgenciaFilter, searchFilter, created_at_start, created_at_end, deadline_start, deadline_end, idFilter, entregarEmFilter });
     
     // Preparar valores para data de fim (adicionar 23:59:59 se necessário)
     const created_at_end_final = created_at_end ? (created_at_end.includes('T') ? created_at_end : `${created_at_end}T23:59:59`) : null;
@@ -103,6 +104,9 @@ async function handleList(event, sql, user) {
     if (deadline_end) {
       const endDate = new Date(deadline_end_final);
       allRequests = allRequests.filter(r => r.deadline && new Date(r.deadline) <= endDate);
+    }
+    if (entregarEmFilter && ['Grafica', 'Salto', 'Flexiveis'].includes(entregarEmFilter)) {
+      allRequests = allRequests.filter(r => r.entregar_em === entregarEmFilter);
     }
 
     // Solicitante só enxerga solicitações do próprio perfil (Salto, Flexíveis ou Gráfica)
