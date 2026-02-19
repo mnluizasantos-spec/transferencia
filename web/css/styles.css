@@ -356,7 +356,7 @@ table th:nth-child(13), table td:nth-child(13) { width: 180px; } /* Ações */
     box-shadow: var(--shadow);
     margin-bottom: 30px;
     display: flex;
-    align-items: end;
+    align-items: flex-end;
     gap: 20px;
     flex-wrap: wrap;
 }
@@ -679,13 +679,13 @@ table th:nth-child(13), table td:nth-child(13) { width: 180px; } /* Ações */
 
 .filters-group-dates {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 12px;
 }
 
 .filters-actions {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     align-items: center;
     gap: 10px;
 }
