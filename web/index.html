@@ -529,14 +529,22 @@
         }
 
         async function loadDashboard() {
+            const setStat = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = value != null && value !== '' ? (Number(value) || 0) : 0;
+            };
             try {
                 const stats = await getDashboardStats();
-                document.getElementById('stat-total').textContent = stats.total;
-                document.getElementById('stat-atrasados').textContent = stats.atrasados;
-                document.getElementById('stat-hoje').textContent = stats.vencem_hoje;
-                document.getElementById('stat-concluidos').textContent = stats.concluidos;
+                setStat('stat-total', stats?.total);
+                setStat('stat-atrasados', stats?.atrasados);
+                setStat('stat-hoje', stats?.vencem_hoje);
+                setStat('stat-concluidos', stats?.concluidos);
             } catch (error) {
                 console.error('Erro ao carregar dashboard:', error);
+                setStat('stat-total', 0);
+                setStat('stat-atrasados', 0);
+                setStat('stat-hoje', 0);
+                setStat('stat-concluidos', 0);
             }
         }
 
@@ -859,11 +867,7 @@
         }
 
         function updateStatsFromFiltered() {
-            // Se não há filtros ativos, não atualizar (preservar dados do dashboard/backend)
-            if (!hasActiveFilters()) {
-                return;
-            }
-            
+            // Sempre atualizar os cards a partir da lista atual (evita subtotal "-" quando o backend falha ou ainda não carregou)
             const total = currentRequests.length;
             
             // Contar concluídos
