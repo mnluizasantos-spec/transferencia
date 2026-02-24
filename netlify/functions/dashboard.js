@@ -16,6 +16,18 @@ async function handleStats(event, sql, user) {
     const meuNome = (user.name || user.nome || '').toString().trim();
     const isSolicitante = user.role === 'solicitante' && meuNome;
 
+    // Mesma lógica da listagem: filtrar por entregar_em (Gráfica / Flexíveis / Salto)
+    let solicitanteCondition = sql``;
+    if (isSolicitante) {
+      if (user.email === 'solicitante@antilhas.com') {
+        solicitanteCondition = sql`AND (entregar_em IS NULL OR entregar_em = 'Grafica')`;
+      } else if (user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis') {
+        solicitanteCondition = sql`AND entregar_em = 'Flexiveis'`;
+      } else {
+        solicitanteCondition = sql`AND entregar_em = 'Salto'`;
+      }
+    }
+
     console.log('Dashboard Stats - Iniciando', { userRole: user.role, userName: user.name, meuNome, isSolicitante });
 
     const [stats] = await sql`
@@ -27,7 +39,7 @@ async function handleStats(event, sql, user) {
         COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vencem_hoje
       FROM material_requests
       WHERE deleted_at IS NULL
-      ${isSolicitante ? sql`AND requester_name = ${meuNome}` : sql``}
+      ${solicitanteCondition}
     `;
 
     console.log('Dashboard Stats - Resultado', stats);
@@ -81,6 +93,7 @@ async function handleUrgentes(event, sql, user) {
         ORDER BY mr.deadline ASC NULLS LAST, mr.created_at ASC
       `;
     } else {
+      // Perfil Salto: filtrar por entregar_em (igual à listagem)
       urgentes = await sql`
         SELECT 
           mr.*,
@@ -89,7 +102,7 @@ async function handleUrgentes(event, sql, user) {
         WHERE mr.deleted_at IS NULL
         AND mr.urgencia = 'Urgente'
         AND mr.status != 'Concluído'
-        AND mr.requester_name = ${meuNome}
+        AND mr.entregar_em = 'Salto'
         ORDER BY mr.deadline ASC NULLS LAST, mr.created_at ASC
       `;
     }
