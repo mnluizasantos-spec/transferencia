@@ -164,11 +164,11 @@ function validateRequestData(data, isUpdate = false) {
     errors.push('Status inválido');
   }
 
-  // entregar_em é obrigatório na criação; opções: Gráfica, Salto, Flexíveis
+  // entregar_em é obrigatório na criação; opções: Gráfica, Salto, Flexíveis, Camaçari
   if (!isUpdate && (!data.entregar_em || data.entregar_em.trim() === '')) {
     errors.push('Entregar em é obrigatório');
-  } else if (data.entregar_em && !isValidOption(data.entregar_em, ['Grafica', 'Salto', 'Flexiveis'])) {
-    errors.push('Entregar em deve ser: Gráfica, Salto ou Flexíveis');
+  } else if (data.entregar_em && !isValidOption(data.entregar_em, ['Grafica', 'Salto', 'Flexiveis', 'Camacari'])) {
+    errors.push('Entregar em deve ser: Gráfica, Salto, Flexíveis ou Camaçari');
   }
 
   if (data.numero_remessa != null && data.numero_remessa !== '') {
