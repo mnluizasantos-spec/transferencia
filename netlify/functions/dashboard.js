@@ -16,7 +16,7 @@ async function handleStats(event, sql, user) {
     const meuNome = (user.name || user.nome || '').toString().trim();
     const isSolicitante = user.role === 'solicitante' && meuNome;
 
-    // Mesma lógica da listagem: filtrar por entregar_em (Gráfica / Flexíveis / Salto)
+    // Mesma lógica da listagem: filtrar por entregar_em (Gráfica / Flexíveis / Salto/Camaçari)
     let solicitanteCondition = sql``;
     if (isSolicitante) {
       if (user.email === 'solicitante@antilhas.com') {
@@ -24,7 +24,9 @@ async function handleStats(event, sql, user) {
       } else if (user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis') {
         solicitanteCondition = sql`AND entregar_em = 'Flexiveis'`;
       } else {
-        solicitanteCondition = sql`AND entregar_em = 'Salto'`;
+        // Perfil Salto (ou outro solicitante sem perfil Gráfica/Flexíveis):
+        // considerar tanto Salto quanto Camaçari
+        solicitanteCondition = sql`AND (entregar_em = 'Salto' OR entregar_em = 'Camacari')`;
       }
     }
 
@@ -93,7 +95,7 @@ async function handleUrgentes(event, sql, user) {
         ORDER BY mr.deadline ASC NULLS LAST, mr.created_at ASC
       `;
     } else {
-      // Perfil Salto: filtrar por entregar_em (igual à listagem)
+      // Perfil Salto: filtrar por entregar_em (igual à listagem) - Salto ou Camaçari
       urgentes = await sql`
         SELECT 
           mr.*,
@@ -102,7 +104,7 @@ async function handleUrgentes(event, sql, user) {
         WHERE mr.deleted_at IS NULL
         AND mr.urgencia = 'Urgente'
         AND mr.status != 'Concluído'
-        AND mr.entregar_em = 'Salto'
+        AND (mr.entregar_em = 'Salto' OR mr.entregar_em = 'Camacari')
         ORDER BY mr.deadline ASC NULLS LAST, mr.created_at ASC
       `;
     }
