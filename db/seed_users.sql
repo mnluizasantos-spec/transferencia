@@ -2,7 +2,7 @@
 -- Seed de Usuários Iniciais
 -- ============================================================================
 -- Senhas: admin=admin123, separador=sep@rador@ntilhas, solicitante=solicit@m@t,
---         flexiveis=Flexiveis#2025, salto=Salto#2025, camacari=Camacari#2025. Hashes bcrypt rounds=10.
+--         flexiveis=Flexiveis#2025, salto=Salto#2025. Hashes bcrypt rounds=10.
 
 -- admin@antilhas.com (senha: admin123)
 INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
@@ -79,21 +79,6 @@ ON CONFLICT (email) DO UPDATE SET
   nome = EXCLUDED.nome,
   name = EXCLUDED.name;
 
--- camacari@antilhas.com (senha: Camacari#2025)
-INSERT INTO users (email, password_hash, nome, name, role, force_password_change)
-VALUES (
-  'camacari@antilhas.com',
-  '$2a$10$V6lETWzXgq5tKp9qfQkmUe2GfKQG0g8bfRZdAv6nS2Fsnq7MkmhX2',
-  'Camaçari',
-  'Camaçari',
-  'solicitante',
-  false
-)
-ON CONFLICT (email) DO UPDATE SET
-  password_hash = EXCLUDED.password_hash,
-  nome = EXCLUDED.nome,
-  name = EXCLUDED.name;
-
 -- Log da operação
 INSERT INTO audit_logs (user_id, acao, tabela_afetada, detalhes_json)
-VALUES (NULL, 'seed_users', 'users', '{"message": "Usuários iniciais criados", "count": 6}'::jsonb);
+VALUES (NULL, 'seed_users', 'users', '{"message": "Usuários iniciais criados", "count": 5}'::jsonb);
