@@ -105,7 +105,7 @@ async function handleList(event, sql, user) {
       const endDate = new Date(deadline_end_final);
       allRequests = allRequests.filter(r => r.deadline && new Date(r.deadline) <= endDate);
     }
-    if (entregarEmFilter && ['Grafica', 'Salto', 'Flexiveis'].includes(entregarEmFilter)) {
+    if (entregarEmFilter && ['Grafica', 'Salto', 'Flexiveis', 'Camacari'].includes(entregarEmFilter)) {
       const normalizedFilter = entregarEmFilter.trim();
       allRequests = allRequests.filter(r => {
         const em = (r.entregar_em || '').toString().trim();
@@ -117,22 +117,29 @@ async function handleList(event, sql, user) {
       });
     }
 
-    // Solicitante só enxerga solicitações do próprio perfil (Salto, Flexíveis ou Gráfica)
+    // Solicitante só enxerga solicitações do próprio perfil (Gráfica, Flexíveis ou Salto/Camaçari)
     if (user.role === 'solicitante') {
       const meuNome = (user.name || user.nome || '').toString().trim();
       if (meuNome) {
-        if (user.email === 'solicitante@antilhas.com') {
+        const isGraficaUser = user.email === 'solicitante@antilhas.com';
+        const isFlexiveisUser = user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis';
+
+        if (isGraficaUser) {
           // Perfil Gráfica: ver apenas solicitações para entregar em Gráfica (null ou Grafica)
           allRequests = allRequests.filter(r => {
             const em = (r.entregar_em || '').toString().trim();
             return !em || em === 'Grafica';
           });
-        } else if (user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis') {
+        } else if (isFlexiveisUser) {
           // Perfil Flexíveis: ver todas as solicitações com Entregar em = Flexíveis (independente do solicitante)
           allRequests = allRequests.filter(r => (r.entregar_em || '').toString().trim() === 'Flexiveis');
         } else {
-          // Perfil Salto: ver todas as solicitações com Entregar em = Salto (independente do solicitante)
-          allRequests = allRequests.filter(r => (r.entregar_em || '').toString().trim() === 'Salto');
+          // Perfil Salto (ou outro solicitante sem perfil Gráfica/Flexíveis):
+          // ver todas as solicitações com Entregar em = Salto ou Camaçari (independente do solicitante)
+          allRequests = allRequests.filter(r => {
+            const em = (r.entregar_em || '').toString().trim();
+            return em === 'Salto' || em === 'Camacari';
+          });
         }
       }
     }
@@ -189,13 +196,14 @@ async function handleGet(event, sql, user) {
   if (user.role === 'solicitante') {
     const isGraficaUser = user.email === 'solicitante@antilhas.com';
     const isFlexiveisUser = user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis';
-    const reqName = (request.requester_name || '').toString().trim();
     const entregarEm = (request.entregar_em || '').toString().trim();
     const canAccess = isGraficaUser
       ? (!entregarEm || entregarEm === 'Grafica')
       : isFlexiveisUser
         ? (entregarEm === 'Flexiveis')
-        : (meuNome && reqName === meuNome);
+        // Perfil Salto (ou outro solicitante sem perfil Gráfica/Flexíveis):
+        // pode acessar solicitações com Entregar em = Salto ou Camaçari
+        : (entregarEm === 'Salto' || entregarEm === 'Camacari');
     if (!canAccess) throw notFoundError('Solicitação');
   }
 
