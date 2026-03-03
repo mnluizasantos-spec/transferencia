@@ -16,33 +16,63 @@ async function handleStats(event, sql, user) {
     const meuNome = (user.name || user.nome || '').toString().trim();
     const isSolicitante = user.role === 'solicitante' && meuNome;
 
-    // Mesma lógica da listagem: filtrar por entregar_em (Gráfica / Flexíveis / Salto/Camaçari)
-    let solicitanteCondition = sql``;
-    if (isSolicitante) {
-      if (user.email === 'solicitante@antilhas.com') {
-        solicitanteCondition = sql`AND (entregar_em IS NULL OR entregar_em = 'Grafica')`;
-      } else if (user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis') {
-        solicitanteCondition = sql`AND entregar_em = 'Flexiveis'`;
-      } else {
-        // Perfil Salto (ou outro solicitante sem perfil Gráfica/Flexíveis):
-        // considerar tanto Salto quanto Camaçari
-        solicitanteCondition = sql`AND (entregar_em = 'Salto' OR entregar_em = 'Camacari')`;
-      }
-    }
-
     console.log('Dashboard Stats - Iniciando', { userRole: user.role, userName: user.name, meuNome, isSolicitante });
 
-    const [stats] = await sql`
-      SELECT 
-        COUNT(*) as total,
-        COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
-        COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
-        COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as atrasados,
-        COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vencem_hoje
-      FROM material_requests
-      WHERE deleted_at IS NULL
-      ${solicitanteCondition}
-    `;
+    let stats;
+
+    if (!isSolicitante) {
+      // Admin / separador: ver todas as solicitações
+      [stats] = await sql`
+        SELECT 
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
+          COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
+          COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as atrasados,
+          COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vencem_hoje
+        FROM material_requests
+        WHERE deleted_at IS NULL
+      `;
+    } else if (user.email === 'solicitante@antilhas.com') {
+      // Perfil Gráfica
+      [stats] = await sql`
+        SELECT 
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
+          COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
+          COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as atrasados,
+          COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vencem_hoje
+        FROM material_requests
+        WHERE deleted_at IS NULL
+        AND (entregar_em IS NULL OR entregar_em = 'Grafica')
+      `;
+    } else if (user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis') {
+      // Perfil Flexíveis
+      [stats] = await sql`
+        SELECT 
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
+          COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
+          COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as atrasados,
+          COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vencem_hoje
+        FROM material_requests
+        WHERE deleted_at IS NULL
+        AND entregar_em = 'Flexiveis'
+      `;
+    } else {
+      // Perfil Salto (ou outro solicitante sem perfil Gráfica/Flexíveis):
+      // considerar tanto Salto quanto Camaçari
+      [stats] = await sql`
+        SELECT 
+          COUNT(*) as total,
+          COUNT(*) FILTER (WHERE status = 'Pendente') as pendentes,
+          COUNT(*) FILTER (WHERE status = 'Concluído') as concluidos,
+          COUNT(*) FILTER (WHERE deadline < CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as atrasados,
+          COUNT(*) FILTER (WHERE DATE(deadline) = CURRENT_DATE AND status != 'Concluído' AND status != 'Cancelado' AND status != 'Recusado') as vencem_hoje
+        FROM material_requests
+        WHERE deleted_at IS NULL
+        AND (entregar_em = 'Salto' OR entregar_em = 'Camacari')
+      `;
+    }
 
     console.log('Dashboard Stats - Resultado', stats);
     
