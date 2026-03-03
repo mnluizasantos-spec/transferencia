@@ -425,6 +425,7 @@ async function handleExecute(event, sql, user) {
       const solicitanteName = (solicitanteFromFile != null && solicitanteFromFile !== '') ? solicitanteFromFile : null;
 
       // Local de entrega: Salto/Flexíveis conforme perfil do usuário; Gráfica/admin/separador ficam null (exibe como Gráfica)
+      // Obs.: importação em massa não diferencia Camaçari; solicitações criadas por usuário Salto vêm com entregar_em = 'Salto'
       const meuNome = (user.name || user.nome || '').toString().trim();
       const entregarEm = meuNome === 'Salto' ? 'Salto' : (meuNome === 'Flexíveis' ? 'Flexiveis' : null);
 
