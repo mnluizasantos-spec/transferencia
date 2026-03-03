@@ -111,6 +111,7 @@
                             <option value="Grafica">Gráfica</option>
                             <option value="Salto">Salto</option>
                             <option value="Flexiveis">Flexíveis</option>
+                            <option value="Camacari">Camaçari</option>
                         </select>
                     </div>
                 </div>
@@ -260,6 +261,7 @@
                             <option value="Grafica">Gráfica</option>
                             <option value="Salto">Salto</option>
                             <option value="Flexiveis">Flexíveis</option>
+                            <option value="Camacari">Camaçari</option>
                         </select>
                     </div>
 
@@ -674,12 +676,17 @@
             const entregarEmLabel = (v) => {
                 const x = (v && typeof v === 'string') ? v.trim() : (v ?? '');
                 if (x === '' || x === '-') return 'Gráfica';
-                return ({ Grafica: 'Gráfica', Salto: 'Salto', Flexiveis: 'Flexíveis' }[x] || x);
+                return ({
+                    Grafica: 'Gráfica',
+                    Salto: 'Salto',
+                    Flexiveis: 'Flexíveis',
+                    Camacari: 'Camaçari'
+                }[x] || x);
             };
-            // Destaque em verde para solicitações com Entregar em = Salto ou Flexíveis (facilita visualização do separador)
+            // Destaque em verde para solicitações com Entregar em = Salto, Camaçari ou Flexíveis (facilita visualização do separador)
             const isEntregarEmFlexiveisSalto = (entregarEm) => {
                 const em = (entregarEm && typeof entregarEm === 'string') ? entregarEm.trim() : '';
-                return em === 'Salto' || em === 'Flexiveis';
+                return em === 'Salto' || em === 'Flexiveis' || em === 'Camacari';
             };
             tbody.innerHTML = currentRequests.map(req => {
                 const reqName = req.solicitante_nome || req.requester_name;
@@ -946,8 +953,9 @@
             const entregarEmGroup = document.getElementById('form-group-entregar-em');
             const entregarEmSelect = document.getElementById('entregar-em');
             if (isSaltoUser(user)) {
+                // Perfil Salto: pode escolher entre Salto e Camaçari (default Salto)
                 entregarEmSelect.value = 'Salto';
-                if (entregarEmGroup) entregarEmGroup.style.display = 'none';
+                if (entregarEmGroup) entregarEmGroup.style.display = 'block';
             } else if (isFlexiveisUser(user)) {
                 entregarEmSelect.value = 'Flexiveis';
                 if (entregarEmGroup) entregarEmGroup.style.display = 'none';
