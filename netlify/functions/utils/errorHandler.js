@@ -102,11 +102,12 @@ function handleError(error, context = {}) {
   const body = {
     error: {
       type: errorType,
-      message: getUserFriendlyMessage({ type: errorType }),
+      // Exibir a message real do erro quando existir, para facilitar diagnóstico
+      message: getUserFriendlyMessage(error),
       timestamp: new Date().toISOString()
     }
   };
-  if (process.env.NODE_ENV !== 'production' && error && error.message) {
+  if (error && error.message) {
     body.error.detail = error.message;
   }
 
