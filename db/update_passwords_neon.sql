@@ -77,3 +77,4 @@ ON CONFLICT (email) DO UPDATE SET
   password_hash = EXCLUDED.password_hash,
   nome = EXCLUDED.nome,
   name = EXCLUDED.name;
+
