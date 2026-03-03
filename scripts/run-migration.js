@@ -26,7 +26,7 @@ async function runMigration() {
     console.log('   ✅ Coluna entregar_em OK');
 
     await sql`ALTER TABLE material_requests DROP CONSTRAINT IF EXISTS chk_entregar_em`;
-    await sql`ALTER TABLE material_requests ADD CONSTRAINT chk_entregar_em CHECK (entregar_em IS NULL OR entregar_em IN ('Grafica', 'Salto', 'Flexiveis'))`;
+    await sql`ALTER TABLE material_requests ADD CONSTRAINT chk_entregar_em CHECK (entregar_em IS NULL OR entregar_em IN ('Grafica', 'Salto', 'Flexiveis', 'Camacari'))`;
     console.log('   ✅ Constraint chk_entregar_em OK');
 
     await sql`ALTER TABLE material_requests ADD COLUMN IF NOT EXISTS numero_remessa VARCHAR(100)`;
