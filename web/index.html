@@ -513,10 +513,9 @@
                 });
             }
 
-            // Fechar modais ao clicar fora
-            document.getElementById('request-modal').addEventListener('click', (e) => {
-                if (e.target.id === 'request-modal') closeRequestModal();
-            });
+            // Fechar modais ao clicar fora (apenas histórico)
+            // O modal de nova solicitação não fecha mais ao clicar fora,
+            // para evitar perda acidental de dados digitados.
             document.getElementById('history-modal').addEventListener('click', (e) => {
                 if (e.target.id === 'history-modal') closeHistoryModal();
             });
