@@ -272,6 +272,116 @@ async function handleTopSolicitantes(event, sql, user) {
 }
 
 /**
+ * GET /api/dashboard/separacao-por-dia
+ * Volume pendente de separação agrupado por prazo e unidade
+ * Visível para todos os roles (respeitando o escopo de cada um)
+ */
+async function handleSeparacaoPorDia(event, sql, user) {
+  try {
+    const meuNome = (user.name || user.nome || '').toString().trim();
+    let rows;
+
+    if (user.role !== 'solicitante') {
+      // Admin / separador: todas as solicitações abertas
+      rows = await sql`
+        SELECT
+          deadline,
+          unidade,
+          SUM(quantidade) as total_quantidade,
+          COUNT(*) as total_ordens
+        FROM material_requests
+        WHERE deleted_at IS NULL
+          AND status IN ('Pendente', 'Em Separação')
+          AND deadline IS NOT NULL
+        GROUP BY deadline, unidade
+        ORDER BY deadline ASC, unidade ASC
+      `;
+    } else if (user.email === 'solicitante@antilhas.com') {
+      // Perfil Gráfica
+      rows = await sql`
+        SELECT
+          deadline,
+          unidade,
+          SUM(quantidade) as total_quantidade,
+          COUNT(*) as total_ordens
+        FROM material_requests
+        WHERE deleted_at IS NULL
+          AND status IN ('Pendente', 'Em Separação')
+          AND deadline IS NOT NULL
+          AND (entregar_em IS NULL OR entregar_em = 'Grafica')
+        GROUP BY deadline, unidade
+        ORDER BY deadline ASC, unidade ASC
+      `;
+    } else if (user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis') {
+      // Perfil Flexíveis
+      rows = await sql`
+        SELECT
+          deadline,
+          unidade,
+          SUM(quantidade) as total_quantidade,
+          COUNT(*) as total_ordens
+        FROM material_requests
+        WHERE deleted_at IS NULL
+          AND status IN ('Pendente', 'Em Separação')
+          AND deadline IS NOT NULL
+          AND entregar_em = 'Flexiveis'
+        GROUP BY deadline, unidade
+        ORDER BY deadline ASC, unidade ASC
+      `;
+    } else {
+      // Perfil Salto / Camaçari
+      rows = await sql`
+        SELECT
+          deadline,
+          unidade,
+          SUM(quantidade) as total_quantidade,
+          COUNT(*) as total_ordens
+        FROM material_requests
+        WHERE deleted_at IS NULL
+          AND status IN ('Pendente', 'Em Separação')
+          AND deadline IS NOT NULL
+          AND (entregar_em = 'Salto' OR entregar_em = 'Camacari')
+        GROUP BY deadline, unidade
+        ORDER BY deadline ASC, unidade ASC
+      `;
+    }
+
+    // Pivotear: agrupar por deadline, colocar kg e pc em colunas
+    const byDay = {};
+    for (const row of rows) {
+      const dia = row.deadline instanceof Date
+        ? row.deadline.toISOString().split('T')[0]
+        : String(row.deadline).split('T')[0];
+
+      if (!byDay[dia]) {
+        byDay[dia] = { deadline: dia, kg: 0, pc: 0, m: 0, total_ordens: 0 };
+      }
+
+      const unidade = (row.unidade || '').toLowerCase();
+      const qtd = parseFloat(row.total_quantidade) || 0;
+      const ordens = parseInt(row.total_ordens) || 0;
+
+      if (unidade === 'kg') byDay[dia].kg += qtd;
+      else if (unidade === 'pc') byDay[dia].pc += qtd;
+      else if (unidade === 'm') byDay[dia].m += qtd;
+
+      byDay[dia].total_ordens += ordens;
+    }
+
+    const result = Object.values(byDay).sort((a, b) => a.deadline.localeCompare(b.deadline));
+
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(result)
+    };
+  } catch (error) {
+    console.error('handleSeparacaoPorDia - Erro:', error);
+    throw error;
+  }
+}
+
+/**
  * Handler principal
  */
 exports.handler = withErrorHandling(async (event, context) => {
@@ -307,6 +417,10 @@ exports.handler = withErrorHandling(async (event, context) => {
     return await handleTopSolicitantes(event, sql, user);
   }
 
+  if (path === '/separacao-por-dia' && event.httpMethod === 'GET') {
+    return await handleSeparacaoPorDia(event, sql, user);
+  }
+
   // Default: retorna stats
   if (path === '/' && event.httpMethod === 'GET') {
     return await handleStats(event, sql, user);
@@ -318,4 +432,3 @@ exports.handler = withErrorHandling(async (event, context) => {
     body: JSON.stringify({ error: 'Rota não encontrada' })
   };
 });
-
