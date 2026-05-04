@@ -121,6 +121,10 @@ export async function getDashboardTrends() {
     return apiCall('/dashboard/trends');
 }
 
+export async function getDashboardSeparacaoPorDia() {
+    return apiCall('/dashboard/separacao-por-dia');
+}
+
 // ========== HISTORY API ==========
 
 export async function getRequestHistory(requestId) {
@@ -293,4 +297,3 @@ export async function printSingleRequest(requestId) {
 export async function getHealth() {
     return apiCall('/health');
 }
-
