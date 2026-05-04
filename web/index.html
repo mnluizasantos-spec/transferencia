@@ -575,81 +575,86 @@
                 const dados = await getDashboardSeparacaoPorDia();
 
                 if (!dados || dados.length === 0) {
-                    container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); font-size: 14px; padding: 12px 0;">Nenhuma solicitação aberta no momento.</p>';
+                    container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); font-size: 14px; padding: 16px 0;">Nenhuma solicitação aberta no momento.</p>';
                     return;
                 }
 
                 const hoje = new Date();
                 hoje.setHours(0, 0, 0, 0);
 
-                // Verificar se alguma linha tem metros para mostrar coluna m
                 const temMetros = dados.some(d => d.m > 0);
+
+                // Totais
+                const totalKg = dados.reduce((s, d) => s + (d.kg || 0), 0);
+                const totalPc = dados.reduce((s, d) => s + (d.pc || 0), 0);
+                const totalM  = dados.reduce((s, d) => s + (d.m  || 0), 0);
+
+                const tdBase = 'padding: 9px 16px; font-size: 14px; border-bottom: 1px solid var(--border);';
+                const tdRight = tdBase + 'text-align: right;';
+                const thBase = 'padding: 8px 16px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: var(--text-secondary); text-transform: uppercase; border-bottom: 2px solid var(--border); white-space: nowrap;';
+                const thRight = thBase + 'text-align: right;';
 
                 const linhas = dados.map(d => {
                     const prazoDate = new Date(d.deadline + 'T12:00:00');
                     prazoDate.setHours(0, 0, 0, 0);
                     const diff = Math.ceil((prazoDate - hoje) / (1000 * 60 * 60 * 24));
 
-                    let prazoStyle = '';
-                    let prazoLabel = '';
+                    let cor = 'var(--text)';
+                    let badge = '';
                     if (diff < 0) {
-                        prazoStyle = 'color: var(--danger); font-weight: 600;';
-                        prazoLabel = ` <small style="color:var(--danger)">(${Math.abs(diff)}d atraso)</small>`;
+                        cor = 'var(--danger)';
+                        badge = `<span style="margin-left:8px;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(var(--danger-rgb,220,53,69),0.12);color:var(--danger)">${Math.abs(diff)}d atraso</span>`;
                     } else if (diff === 0) {
-                        prazoStyle = 'color: var(--warning); font-weight: 600;';
-                        prazoLabel = ` <small style="color:var(--warning)">(hoje)</small>`;
+                        cor = 'var(--warning)';
+                        badge = `<span style="margin-left:8px;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(var(--warning-rgb,255,193,7),0.15);color:var(--warning)">hoje</span>`;
                     } else if (diff <= 2) {
-                        prazoStyle = 'color: var(--warning); font-weight: 600;';
-                        prazoLabel = ` <small style="color:var(--warning)">(${diff}d)</small>`;
+                        cor = 'var(--warning)';
+                        badge = `<span style="margin-left:8px;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(var(--warning-rgb,255,193,7),0.15);color:var(--warning)">${diff}d</span>`;
                     } else {
-                        prazoStyle = 'color: var(--text);';
-                        prazoLabel = ` <small style="color:var(--text-secondary)">(${diff}d)</small>`;
+                        badge = `<span style="margin-left:8px;font-size:12px;color:var(--text-secondary)">${diff}d</span>`;
                     }
 
                     const prazoFormatado = prazoDate.toLocaleDateString('pt-BR');
-                    const kgFormatado = d.kg > 0 ? d.kg.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : '-';
-                    const pcFormatado = d.pc > 0 ? Math.ceil(d.pc).toLocaleString('pt-BR') : '-';
-                    const mFormatado  = d.m  > 0 ? d.m.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : '-';
-                    const ordensLabel = `${d.total_ordens} ordem${d.total_ordens !== 1 ? 'ns' : ''}`;
+                    const kgFormatado = d.kg > 0 ? d.kg.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : '—';
+                    const pcFormatado = d.pc > 0 ? Math.ceil(d.pc).toLocaleString('pt-BR') : '—';
+                    const mFormatado  = d.m  > 0 ? d.m.toLocaleString('pt-BR',  { maximumFractionDigits: 2 }) : '—';
 
-                    return `
-                        <tr>
-                            <td style="${prazoStyle}">${prazoFormatado}${prazoLabel}</td>
-                            <td style="text-align: right; font-weight: 600;">${kgFormatado}</td>
-                            <td style="text-align: right; font-weight: 600;">${pcFormatado}</td>
-                            ${temMetros ? `<td style="text-align: right; font-weight: 600;">${mFormatado}</td>` : ''}
-                            <td style="text-align: right; color: var(--text-secondary); font-size: 13px;">${ordensLabel}</td>
-                        </tr>
-                    `;
+                    return `<tr style="transition:background 0.15s" onmouseover="this.style.background='var(--hover-bg,rgba(0,0,0,0.03))'" onmouseout="this.style.background=''">
+                        <td style="${tdBase}color:${cor};font-weight:600">${prazoFormatado}${badge}</td>
+                        <td style="${tdRight}font-weight:600">${kgFormatado}</td>
+                        <td style="${tdRight}font-weight:600">${pcFormatado}</td>
+                        ${temMetros ? `<td style="${tdRight}font-weight:600">${mFormatado}</td>` : ''}
+                    </tr>`;
                 }).join('');
+
+                const totalKgFmt = totalKg > 0 ? totalKg.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : '—';
+                const totalPcFmt = totalPc > 0 ? Math.ceil(totalPc).toLocaleString('pt-BR') : '—';
+                const totalMFmt  = totalM  > 0 ? totalM.toLocaleString('pt-BR',  { maximumFractionDigits: 2 }) : '—';
+                const tdTotal = 'padding: 9px 16px; font-size: 14px; font-weight: 700; border-top: 2px solid var(--border); color: var(--text);';
+                const tdTotalRight = tdTotal + 'text-align: right;';
 
                 container.innerHTML = `
                     <div style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                        <table style="width: 100%; border-collapse: collapse;">
                             <thead>
-                                <tr style="border-bottom: 2px solid var(--border);">
-                                    <th style="text-align: left; padding: 6px 12px 6px 0; color: var(--text-secondary); font-weight: 600; font-size: 12px; white-space: nowrap;">PRAZO</th>
-                                    <th style="text-align: right; padding: 6px 12px; color: var(--text-secondary); font-weight: 600; font-size: 12px;">KG PENDENTE</th>
-                                    <th style="text-align: right; padding: 6px 12px; color: var(--text-secondary); font-weight: 600; font-size: 12px;">PC PENDENTE</th>
-                                    ${temMetros ? '<th style="text-align: right; padding: 6px 12px; color: var(--text-secondary); font-weight: 600; font-size: 12px;">M PENDENTE</th>' : ''}
-                                    <th style="text-align: right; padding: 6px 0 6px 12px; color: var(--text-secondary); font-weight: 600; font-size: 12px;">ORDENS</th>
+                                <tr>
+                                    <th style="${thBase}text-align:left">Prazo</th>
+                                    <th style="${thRight}">kg pendente</th>
+                                    <th style="${thRight}">pc pendente</th>
+                                    ${temMetros ? `<th style="${thRight}">m pendente</th>` : ''}
                                 </tr>
                             </thead>
-                            <tbody>
-                                ${linhas}
-                            </tbody>
+                            <tbody>${linhas}</tbody>
+                            <tfoot>
+                                <tr>
+                                    <td style="${tdTotal}color:var(--text-secondary)">Total</td>
+                                    <td style="${tdTotalRight}">${totalKgFmt}</td>
+                                    <td style="${tdTotalRight}">${totalPcFmt}</td>
+                                    ${temMetros ? `<td style="${tdTotalRight}">${totalMFmt}</td>` : ''}
+                                </tr>
+                            </tfoot>
                         </table>
-                    </div>
-                `;
-
-                // Aplicar padding nas células
-                container.querySelectorAll('tbody td').forEach(td => {
-                    td.style.padding = '7px 12px 7px 0';
-                    td.style.borderBottom = '1px solid var(--border)';
-                });
-                container.querySelectorAll('tbody td:not(:first-child)').forEach(td => {
-                    td.style.paddingLeft = '12px';
-                });
+                    </div>`;
 
             } catch (error) {
                 console.error('Erro ao carregar separação por dia:', error);
