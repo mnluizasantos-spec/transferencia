@@ -563,8 +563,8 @@
                 setStat('stat-concluidos', 0);
             }
 
-            // Carregar painel de separação por dia (independente dos stats)
-            loadSeparacaoPorDia();
+            // Carregar painel de separação em paralelo, sem bloquear o resto da página
+            loadSeparacaoPorDia().catch(() => {});
         }
 
         async function loadSeparacaoPorDia() {
@@ -572,7 +572,11 @@
             if (!container) return;
 
             try {
-                const dados = await getDashboardSeparacaoPorDia();
+                // Timeout de 8s para não travar caso a função Netlify não responda
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('timeout')), 8000)
+                );
+                const dados = await Promise.race([getDashboardSeparacaoPorDia(), timeoutPromise]);
 
                 if (!dados || dados.length === 0) {
                     container.innerHTML = '<p style="text-align: center; color: var(--text-secondary); font-size: 14px; padding: 16px 0;">Nenhuma solicitação aberta no momento.</p>';
