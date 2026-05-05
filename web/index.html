@@ -82,6 +82,21 @@
             </div>
         </div>
 
+        <!-- Painel: Capacidade Diária -->
+        <div id="capacidade-panel" style="margin-bottom: 20px;">
+            <div style="background: var(--card-bg); border-radius: 8px; padding: 16px; border: 1px solid var(--border);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 600; color: var(--text);">
+                        ⚖️ Capacidade de Separação — Hoje
+                    </h3>
+                    <span style="font-size: 12px; color: var(--text-secondary);">em kg</span>
+                </div>
+                <div id="capacidade-hoje-content">
+                    <p style="text-align: center; color: var(--text-secondary); font-size: 14px; padding: 12px 0;">Carregando...</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Painel: Volume Pendente de Separação por Dia -->
         <div id="separacao-por-dia-panel" style="margin-bottom: 20px;">
             <div style="background: var(--card-bg); border-radius: 8px; padding: 16px; border: 1px solid var(--border);">
@@ -359,7 +374,7 @@
 
     <script type="module">
         import { requireAuth, getCurrentUser, logout, isAdmin, isSeparador } from '/js/auth.js';
-        import { getRequests, getRequest, getDashboardStats, getDashboardSeparacaoPorDia, createRequest, updateRequest, deleteRequest, getRequestHistory, printPickingList } from '/js/api.js';
+        import { getRequests, getRequest, getDashboardStats, getDashboardSeparacaoPorDia, getDashboardCapacidadeHoje, getDashboardConfig, updateDashboardConfig, createRequest, updateRequest, deleteRequest, getRequestHistory, printPickingList } from '/js/api.js';
 
         // Verificar token ao carregar página
         window.addEventListener('DOMContentLoaded', function() {
@@ -563,9 +578,136 @@
                 setStat('stat-concluidos', 0);
             }
 
-            // Carregar painel de separação em paralelo, sem bloquear o resto da página
+            // Carregar painéis em paralelo, sem bloquear o resto da página
             loadSeparacaoPorDia().catch(() => {});
+            loadCapacidadeHoje().catch(() => {});
         }
+
+        // Estado da edição de capacidade
+        let capacidadeEditando = false;
+
+        async function loadCapacidadeHoje() {
+            const container = document.getElementById('capacidade-hoje-content');
+            if (!container) return;
+
+            try {
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('timeout')), 8000)
+                );
+                const dados = await Promise.race([getDashboardCapacidadeHoje(), timeoutPromise]);
+                renderCapacidadeHoje(dados);
+            } catch (error) {
+                console.error('Erro ao carregar capacidade:', error);
+                const container = document.getElementById('capacidade-hoje-content');
+                if (container) container.innerHTML = '<p style="text-align:center;color:var(--text-secondary);font-size:13px;padding:8px 0;">Não foi possível carregar o painel de capacidade.</p>';
+            }
+        }
+
+        function renderCapacidadeHoje(dados) {
+            const container = document.getElementById('capacidade-hoje-content');
+            if (!container) return;
+
+            const user = getCurrentUser();
+            const isAdminUser = user && user.role === 'admin';
+
+            const capacidade = dados.capacidade_diaria_kg;
+            const solicitado = dados.solicitado_kg || 0;
+            const realizado = dados.realizado_kg || 0;
+            const pendente = dados.pendente_kg || 0;
+
+            const fmt = (v) => v != null ? v.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kg' : '—';
+
+            const cardStyle = 'flex:1;min-width:160px;background:var(--bg,#f9fafb);border:1px solid var(--border);border-radius:8px;padding:14px 18px;text-align:center;';
+            const labelStyle = 'font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:6px;';
+            const valueStyle = 'font-size:22px;font-weight:700;color:var(--text);line-height:1.2;';
+
+            const editBtn = isAdminUser
+                ? `<button onclick="abrirEditarCapacidade()" style="background:none;border:none;cursor:pointer;font-size:13px;margin-left:6px;opacity:0.6;vertical-align:middle" title="Editar capacidade diária">✏️</button>`
+                : '';
+
+            const capacidadeValue = capacidade != null
+                ? `<span style="${valueStyle}">${fmt(capacidade)}</span>${editBtn}`
+                : `<span style="font-size:14px;color:var(--text-secondary)">Não definida</span>${editBtn}`;
+
+            // Barra de progresso realizado/capacidade
+            let progressBar = '';
+            if (capacidade && capacidade > 0) {
+                const pct = Math.min(100, Math.round((realizado / capacidade) * 100));
+                const cor = pct >= 100 ? 'var(--success,#28a745)' : pct >= 70 ? 'var(--warning,#ffc107)' : 'var(--primary,#0d6efd)';
+                progressBar = `
+                    <div style="margin-top:12px;">
+                        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">
+                            <span>Realizado</span><span>${pct}%</span>
+                        </div>
+                        <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden;">
+                            <div style="width:${pct}%;background:${cor};height:100%;border-radius:4px;transition:width 0.4s;"></div>
+                        </div>
+                    </div>`;
+            }
+
+            container.innerHTML = `
+                <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                    <div style="${cardStyle}border-top:3px solid var(--primary,#0d6efd)">
+                        <div style="${labelStyle}">Capacidade Dia</div>
+                        <div>${capacidadeValue}</div>
+                    </div>
+                    <div style="${cardStyle}border-top:3px solid var(--info,#0dcaf0)">
+                        <div style="${labelStyle}">Solicitado Hoje</div>
+                        <div style="${valueStyle}">${fmt(solicitado)}</div>
+                    </div>
+                    <div style="${cardStyle}border-top:3px solid var(--success,#28a745)">
+                        <div style="${labelStyle}">Realizado Hoje</div>
+                        <div style="${valueStyle}">${fmt(realizado)}</div>
+                    </div>
+                    <div style="${cardStyle}border-top:3px solid var(--warning,#ffc107)">
+                        <div style="${labelStyle}">Pendente Hoje</div>
+                        <div style="${valueStyle}">${fmt(pendente)}</div>
+                    </div>
+                </div>
+                ${progressBar}
+            `;
+        }
+
+        window.abrirEditarCapacidade = function() {
+            const container = document.getElementById('capacidade-hoje-content');
+            if (!container || capacidadeEditando) return;
+            capacidadeEditando = true;
+
+            // Pegar valor atual do texto do card
+            const cards = container.querySelectorAll('[style*="Capacidade"]');
+
+            const input = document.createElement('div');
+            input.style.cssText = 'margin-top:12px;display:flex;align-items:center;gap:8px;';
+            input.innerHTML = `
+                <label style="font-size:13px;color:var(--text-secondary);">Nova capacidade diária (kg):</label>
+                <input type="number" id="capacidade-input" min="0" step="100" placeholder="Ex: 80000"
+                    style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px;width:140px;">
+                <button onclick="salvarCapacidade()" style="padding:6px 14px;background:var(--primary,#0d6efd);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;">Salvar</button>
+                <button onclick="cancelarCapacidade()" style="padding:6px 10px;background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;color:var(--text-secondary);">Cancelar</button>
+            `;
+            container.appendChild(input);
+            document.getElementById('capacidade-input').focus();
+        };
+
+        window.cancelarCapacidade = function() {
+            capacidadeEditando = false;
+            loadCapacidadeHoje().catch(() => {});
+        };
+
+        window.salvarCapacidade = async function() {
+            const val = parseFloat(document.getElementById('capacidade-input').value);
+            if (isNaN(val) || val < 0) {
+                alert('Valor inválido. Digite um número maior ou igual a zero.');
+                return;
+            }
+            try {
+                await updateDashboardConfig({ capacidade_diaria_kg: val });
+                capacidadeEditando = false;
+                await loadCapacidadeHoje();
+            } catch (error) {
+                alert('Erro ao salvar: ' + (error.message || error));
+            }
+        };
 
         async function loadSeparacaoPorDia() {
             const container = document.getElementById('separacao-por-dia-content');
@@ -1188,6 +1330,7 @@
                 await loadRequests();
                 // Atualizar painel de separação após salvar
                 await loadSeparacaoPorDia();
+                await loadCapacidadeHoje().catch(() => {});
             } catch (error) {
                 alert(`Erro ao salvar: ${getErrorMessage(error)}`);
             }
@@ -1202,6 +1345,7 @@
                 await loadRequests();
                 // Atualizar painel de separação após concluir
                 await loadSeparacaoPorDia();
+                await loadCapacidadeHoje().catch(() => {});
             } catch (error) {
                 alert(`Erro: ${getErrorMessage(error)}`);
             }
@@ -1242,6 +1386,7 @@
                 fecharModalRecusa();
                 await loadRequests();
                 await loadSeparacaoPorDia();
+                await loadCapacidadeHoje().catch(() => {});
             } catch (error) {
                 console.error('Erro ao recusar:', error);
                 alert('Erro ao recusar solicitação: ' + getErrorMessage(error));
@@ -1264,6 +1409,7 @@
                 await loadRequests();
                 // Atualizar painel de separação quando status muda
                 await loadSeparacaoPorDia();
+                await loadCapacidadeHoje().catch(() => {});
             } catch (error) {
                 alert(`Erro: ${getErrorMessage(error)}`);
             }
@@ -1275,6 +1421,7 @@
                 alert('Solicitação revertida para Em Separação!');
                 await loadRequests();
                 await loadSeparacaoPorDia();
+                await loadCapacidadeHoje().catch(() => {});
             } catch (error) {
                 alert(`Erro ao reverter: ${getErrorMessage(error)}`);
             }
@@ -1713,6 +1860,7 @@
                     }
                     loadRequests(); // Recarregar lista
                     loadSeparacaoPorDia(); // Atualizar painel após importação
+                loadCapacidadeHoje().catch(() => {}); // Atualizar capacidade após importação
                 } else {
                     throw new Error(getApiErrorDetail(result));
                 }
