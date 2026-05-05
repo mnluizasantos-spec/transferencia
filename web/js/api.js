@@ -125,6 +125,21 @@ export async function getDashboardSeparacaoPorDia() {
     return apiCall('/dashboard/separacao-por-dia');
 }
 
+export async function getDashboardCapacidadeHoje() {
+    return apiCall('/dashboard/capacidade-hoje');
+}
+
+export async function getDashboardConfig() {
+    return apiCall('/dashboard/config');
+}
+
+export async function updateDashboardConfig(data) {
+    return apiCall('/dashboard/config', {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    });
+}
+
 // ========== HISTORY API ==========
 
 export async function getRequestHistory(requestId) {
