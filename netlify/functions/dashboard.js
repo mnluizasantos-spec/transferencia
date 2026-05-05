@@ -463,51 +463,31 @@ async function handleCapacidadeConfig(event, sql, user) {
  */
 async function handleCapacidadeHoje(event, sql, user) {
   const meuNome = (user.name || user.nome || '').toString().trim();
+  const isGrafica = user.role === 'solicitante' && user.email === 'solicitante@antilhas.com';
+  const isFlexiveis = user.role === 'solicitante' && (user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis');
+  const isSalto = user.role === 'solicitante' && !isGrafica && !isFlexiveis;
+  const isAdmin = user.role !== 'solicitante';
 
-  // Filtro de escopo igual aos outros handlers
-  let scopeFilter;
-  if (user.role !== 'solicitante') {
-    scopeFilter = sql`TRUE`;
-  } else if (user.email === 'solicitante@antilhas.com') {
-    scopeFilter = sql`(entregar_em IS NULL OR entregar_em = 'Grafica')`;
-  } else if (user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis') {
-    scopeFilter = sql`entregar_em = 'Flexiveis'`;
+  let solicitado, realizado, pendente;
+
+  if (isAdmin) {
+    [solicitado] = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status NOT IN ('Cancelado','Recusado')`;
+    [realizado]  = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status='Concluído'`;
+    [pendente]   = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status IN ('Pendente','Em Separação')`;
+  } else if (isGrafica) {
+    [solicitado] = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status NOT IN ('Cancelado','Recusado') AND (entregar_em IS NULL OR entregar_em='Grafica')`;
+    [realizado]  = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status='Concluído' AND (entregar_em IS NULL OR entregar_em='Grafica')`;
+    [pendente]   = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status IN ('Pendente','Em Separação') AND (entregar_em IS NULL OR entregar_em='Grafica')`;
+  } else if (isFlexiveis) {
+    [solicitado] = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status NOT IN ('Cancelado','Recusado') AND entregar_em='Flexiveis'`;
+    [realizado]  = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status='Concluído' AND entregar_em='Flexiveis'`;
+    [pendente]   = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status IN ('Pendente','Em Separação') AND entregar_em='Flexiveis'`;
   } else {
-    scopeFilter = sql`(entregar_em = 'Salto' OR entregar_em = 'Camacari')`;
+    // Salto / Camaçari
+    [solicitado] = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status NOT IN ('Cancelado','Recusado') AND (entregar_em='Salto' OR entregar_em='Camacari')`;
+    [realizado]  = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status='Concluído' AND (entregar_em='Salto' OR entregar_em='Camacari')`;
+    [pendente]   = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status IN ('Pendente','Em Separação') AND (entregar_em='Salto' OR entregar_em='Camacari')`;
   }
-
-  // Solicitado hoje: todas as ordens com deadline = hoje e status ativo (kg)
-  const [solicitado] = await sql`
-    SELECT COALESCE(SUM(quantidade), 0) as total
-    FROM material_requests
-    WHERE deleted_at IS NULL
-      AND unidade = 'kg'
-      AND DATE(deadline) = CURRENT_DATE
-      AND status NOT IN ('Cancelado', 'Recusado')
-      AND ${scopeFilter}
-  `;
-
-  // Realizado hoje: concluídas com deadline = hoje (kg)
-  const [realizado] = await sql`
-    SELECT COALESCE(SUM(quantidade), 0) as total
-    FROM material_requests
-    WHERE deleted_at IS NULL
-      AND unidade = 'kg'
-      AND DATE(deadline) = CURRENT_DATE
-      AND status = 'Concluído'
-      AND ${scopeFilter}
-  `;
-
-  // Pendente hoje: Pendente ou Em Separação com deadline = hoje (kg)
-  const [pendente] = await sql`
-    SELECT COALESCE(SUM(quantidade), 0) as total
-    FROM material_requests
-    WHERE deleted_at IS NULL
-      AND unidade = 'kg'
-      AND DATE(deadline) = CURRENT_DATE
-      AND status IN ('Pendente', 'Em Separação')
-      AND ${scopeFilter}
-  `;
 
   // Capacidade diária configurada
   await ensureConfigTable(sql);
