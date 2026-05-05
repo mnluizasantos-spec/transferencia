@@ -384,11 +384,153 @@ async function handleSeparacaoPorDia(event, sql, user) {
 /**
  * Handler principal
  */
+/**
+ * Garante que a tabela dashboard_config existe
+ */
+async function ensureConfigTable(sql) {
+  await sql`
+    CREATE TABLE IF NOT EXISTS dashboard_config (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+}
+
+/**
+ * GET /api/dashboard/config
+ * Retorna configurações do dashboard (capacidade diária em kg)
+ *
+ * PUT /api/dashboard/config
+ * Salva configurações (apenas admin)
+ */
+async function handleCapacidadeConfig(event, sql, user) {
+  await ensureConfigTable(sql);
+
+  if (event.httpMethod === 'GET') {
+    const rows = await sql`SELECT key, value FROM dashboard_config WHERE key = 'capacidade_diaria_kg'`;
+    const capacidade = rows.length > 0 ? parseFloat(rows[0].value) : null;
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ capacidade_diaria_kg: capacidade })
+    };
+  }
+
+  if (event.httpMethod === 'PUT') {
+    if (user.role !== 'admin') {
+      return {
+        statusCode: 403,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Apenas administradores podem alterar configurações' })
+      };
+    }
+
+    const body = JSON.parse(event.body || '{}');
+    const valor = parseFloat(body.capacidade_diaria_kg);
+
+    if (isNaN(valor) || valor < 0) {
+      return {
+        statusCode: 400,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: 'Valor inválido para capacidade diária' })
+      };
+    }
+
+    await sql`
+      INSERT INTO dashboard_config (key, value, updated_at)
+      VALUES ('capacidade_diaria_kg', ${String(valor)}, NOW())
+      ON CONFLICT (key) DO UPDATE SET value = ${String(valor)}, updated_at = NOW()
+    `;
+
+    return {
+      statusCode: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ capacidade_diaria_kg: valor })
+    };
+  }
+
+  return {
+    statusCode: 405,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ error: 'Método não permitido' })
+  };
+}
+
+/**
+ * GET /api/dashboard/capacidade-hoje
+ * Retorna solicitado/realizado/pendente em kg para hoje
+ */
+async function handleCapacidadeHoje(event, sql, user) {
+  const meuNome = (user.name || user.nome || '').toString().trim();
+
+  // Filtro de escopo igual aos outros handlers
+  let scopeFilter;
+  if (user.role !== 'solicitante') {
+    scopeFilter = sql`TRUE`;
+  } else if (user.email === 'solicitante@antilhas.com') {
+    scopeFilter = sql`(entregar_em IS NULL OR entregar_em = 'Grafica')`;
+  } else if (user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis') {
+    scopeFilter = sql`entregar_em = 'Flexiveis'`;
+  } else {
+    scopeFilter = sql`(entregar_em = 'Salto' OR entregar_em = 'Camacari')`;
+  }
+
+  // Solicitado hoje: todas as ordens com deadline = hoje e status ativo (kg)
+  const [solicitado] = await sql`
+    SELECT COALESCE(SUM(quantidade), 0) as total
+    FROM material_requests
+    WHERE deleted_at IS NULL
+      AND unidade = 'kg'
+      AND DATE(deadline) = CURRENT_DATE
+      AND status NOT IN ('Cancelado', 'Recusado')
+      AND ${scopeFilter}
+  `;
+
+  // Realizado hoje: concluídas com deadline = hoje (kg)
+  const [realizado] = await sql`
+    SELECT COALESCE(SUM(quantidade), 0) as total
+    FROM material_requests
+    WHERE deleted_at IS NULL
+      AND unidade = 'kg'
+      AND DATE(deadline) = CURRENT_DATE
+      AND status = 'Concluído'
+      AND ${scopeFilter}
+  `;
+
+  // Pendente hoje: Pendente ou Em Separação com deadline = hoje (kg)
+  const [pendente] = await sql`
+    SELECT COALESCE(SUM(quantidade), 0) as total
+    FROM material_requests
+    WHERE deleted_at IS NULL
+      AND unidade = 'kg'
+      AND DATE(deadline) = CURRENT_DATE
+      AND status IN ('Pendente', 'Em Separação')
+      AND ${scopeFilter}
+  `;
+
+  // Capacidade diária configurada
+  await ensureConfigTable(sql);
+  const configRows = await sql`SELECT value FROM dashboard_config WHERE key = 'capacidade_diaria_kg'`;
+  const capacidade = configRows.length > 0 ? parseFloat(configRows[0].value) : null;
+
+  return {
+    statusCode: 200,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      capacidade_diaria_kg: capacidade,
+      solicitado_kg: parseFloat(solicitado.total) || 0,
+      realizado_kg: parseFloat(realizado.total) || 0,
+      pendente_kg: parseFloat(pendente.total) || 0
+    })
+  };
+}
+
 exports.handler = withErrorHandling(async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, PUT, OPTIONS',
     'Content-Type': 'application/json'
   };
 
@@ -419,6 +561,14 @@ exports.handler = withErrorHandling(async (event, context) => {
 
   if (path === '/separacao-por-dia' && event.httpMethod === 'GET') {
     return await handleSeparacaoPorDia(event, sql, user);
+  }
+
+  if (path === '/config' && (event.httpMethod === 'GET' || event.httpMethod === 'PUT')) {
+    return await handleCapacidadeConfig(event, sql, user);
+  }
+
+  if (path === '/capacidade-hoje' && event.httpMethod === 'GET') {
+    return await handleCapacidadeHoje(event, sql, user);
   }
 
   // Default: retorna stats
