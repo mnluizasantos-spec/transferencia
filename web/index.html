@@ -647,9 +647,12 @@
                     const diaDate = new Date(d.dia + 'T12:00:00');
                     diaDate.setHours(0,0,0,0);
                     const diff = Math.ceil((diaDate - hoje) / 86400000);
+                    const concluido = d.pendente === 0 && d.realizado > 0;
                     let corDia = 'var(--text)';
                     let badge = '';
-                    if (diff < 0) {
+                    if (diff < 0 && concluido) {
+                        corDia = 'var(--text-secondary)';
+                    } else if (diff < 0) {
                         corDia = 'var(--danger,#dc3545)';
                         badge = `<span style="margin-left:6px;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;background:rgba(220,53,69,0.1);color:var(--danger,#dc3545)">${Math.abs(diff)}d atraso</span>`;
                     } else if (diff === 0) {
@@ -671,9 +674,9 @@
                 }).join('');
 
                 tabelaPorDia = `
-                    <div style="margin-top:16px;overflow-x:auto;">
+                    <div style="margin-top:16px;overflow-x:auto;max-height:250px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;">
                         <table style="width:100%;border-collapse:collapse;">
-                            <thead><tr>
+                            <thead style="position:sticky;top:0;z-index:1;background:var(--card-bg,#fff)"><tr>
                                 <th style="${thS}text-align:left">Prazo</th>
                                 <th style="${thR}">Solicitado (kg)</th>
                                 <th style="${thR}">Realizado (kg)</th>
