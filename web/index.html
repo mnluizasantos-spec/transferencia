@@ -598,10 +598,12 @@
 
             const capacidade = dados.capacidade_diaria_kg;
             const solicitado = dados.solicitado_kg || 0;
-            const realizado = dados.realizado_kg || 0;
-            const pendente = dados.pendente_kg || 0;
+            const realizado  = dados.realizado_kg  || 0;
+            const pendente   = dados.pendente_kg   || 0;
+            const porDia     = dados.por_dia || [];
 
             const fmt = (v) => v != null ? v.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kg' : '—';
+            const fmtN = (v) => v != null ? v.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : '—';
 
             const cardStyle = 'flex:1;min-width:160px;background:var(--bg,#f9fafb);border:1px solid var(--border);border-radius:8px;padding:14px 18px;text-align:center;';
             const labelStyle = 'font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-secondary);margin-bottom:6px;';
@@ -615,7 +617,7 @@
                 ? `<span style="${valueStyle}">${fmt(capacidade)}</span>${editBtn}`
                 : `<span style="font-size:14px;color:var(--text-secondary)">Não definida</span>${editBtn}`;
 
-            // Barra de progresso realizado/capacidade
+            // Barra de progresso realizado/capacidade (hoje)
             let progressBar = '';
             if (capacidade && capacidade > 0) {
                 const pct = Math.min(100, Math.round((realizado / capacidade) * 100));
@@ -623,11 +625,62 @@
                 progressBar = `
                     <div style="margin-top:12px;">
                         <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:4px;">
-                            <span>Realizado</span><span>${pct}%</span>
+                            <span>Realizado hoje</span><span>${pct}%</span>
                         </div>
                         <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden;">
                             <div style="width:${pct}%;background:${cor};height:100%;border-radius:4px;transition:width 0.4s;"></div>
                         </div>
+                    </div>`;
+            }
+
+            // Tabela histórico por dia
+            const hoje = new Date();
+            hoje.setHours(0,0,0,0);
+            const thS = 'padding:7px 14px;font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-secondary);border-bottom:2px solid var(--border);white-space:nowrap;';
+            const thR = thS + 'text-align:right;';
+            const tdS = 'padding:7px 14px;font-size:13px;border-bottom:1px solid var(--border);';
+            const tdR = tdS + 'text-align:right;font-weight:600;';
+
+            let tabelaPorDia = '';
+            if (porDia.length > 0) {
+                const linhas = porDia.map(d => {
+                    const diaDate = new Date(d.dia + 'T12:00:00');
+                    diaDate.setHours(0,0,0,0);
+                    const diff = Math.ceil((diaDate - hoje) / 86400000);
+                    let corDia = 'var(--text)';
+                    let badge = '';
+                    if (diff < 0) {
+                        corDia = 'var(--danger,#dc3545)';
+                        badge = `<span style="margin-left:6px;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;background:rgba(220,53,69,0.1);color:var(--danger,#dc3545)">${Math.abs(diff)}d atraso</span>`;
+                    } else if (diff === 0) {
+                        corDia = 'var(--warning,#ffc107)';
+                        badge = `<span style="margin-left:6px;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;background:rgba(255,193,7,0.15);color:var(--warning,#e6a800)">hoje</span>`;
+                    } else if (diff <= 2) {
+                        corDia = 'var(--warning,#ffc107)';
+                        badge = `<span style="margin-left:6px;padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;background:rgba(255,193,7,0.15);color:var(--warning,#e6a800)">${diff}d</span>`;
+                    } else {
+                        badge = `<span style="margin-left:6px;font-size:11px;color:var(--text-secondary)">${diff}d</span>`;
+                    }
+                    const rowBg = diff === 0 ? 'background:rgba(255,193,7,0.06);' : '';
+                    return `<tr style="${rowBg}transition:background 0.15s" onmouseover="this.style.background='var(--hover-bg,rgba(0,0,0,0.03))'" onmouseout="this.style.background='${diff===0?'rgba(255,193,7,0.06)':''}'" >
+                        <td style="${tdS}color:${corDia};font-weight:600">${diaDate.toLocaleDateString('pt-BR')}${badge}</td>
+                        <td style="${tdR}">${fmtN(d.solicitado)}</td>
+                        <td style="${tdR}color:var(--success,#28a745)">${fmtN(d.realizado)}</td>
+                        <td style="${tdR}color:${d.pendente > 0 ? 'var(--warning,#e6a800)' : 'var(--text-secondary)'}">${fmtN(d.pendente)}</td>
+                    </tr>`;
+                }).join('');
+
+                tabelaPorDia = `
+                    <div style="margin-top:16px;overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;">
+                            <thead><tr>
+                                <th style="${thS}text-align:left">Prazo</th>
+                                <th style="${thR}">Solicitado (kg)</th>
+                                <th style="${thR}">Realizado (kg)</th>
+                                <th style="${thR}">Pendente (kg)</th>
+                            </tr></thead>
+                            <tbody>${linhas}</tbody>
+                        </table>
                     </div>`;
             }
 
@@ -651,6 +704,7 @@
                     </div>
                 </div>
                 ${progressBar}
+                ${tabelaPorDia}
             `;
         }
 
