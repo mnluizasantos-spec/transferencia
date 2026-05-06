@@ -463,11 +463,11 @@ async function handleCapacidadeConfig(event, sql, user) {
  */
 async function handleCapacidadeHoje(event, sql, user) {
   const meuNome = (user.name || user.nome || '').toString().trim();
-  const isGrafica = user.role === 'solicitante' && user.email === 'solicitante@antilhas.com';
+  const isGrafica   = user.role === 'solicitante' && user.email === 'solicitante@antilhas.com';
   const isFlexiveis = user.role === 'solicitante' && (user.email === 'flexiveis@antilhas.com' || meuNome === 'Flexíveis' || meuNome === 'Flexiveis');
-  const isSalto = user.role === 'solicitante' && !isGrafica && !isFlexiveis;
-  const isAdmin = user.role !== 'solicitante';
+  const isAdmin     = user.role !== 'solicitante';
 
+  // ── Totais de HOJE ──────────────────────────────────────────────────────────
   let solicitado, realizado, pendente;
 
   if (isAdmin) {
@@ -483,10 +483,65 @@ async function handleCapacidadeHoje(event, sql, user) {
     [realizado]  = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status='Concluído' AND entregar_em='Flexiveis'`;
     [pendente]   = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status IN ('Pendente','Em Separação') AND entregar_em='Flexiveis'`;
   } else {
-    // Salto / Camaçari
     [solicitado] = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status NOT IN ('Cancelado','Recusado') AND (entregar_em='Salto' OR entregar_em='Camacari')`;
     [realizado]  = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status='Concluído' AND (entregar_em='Salto' OR entregar_em='Camacari')`;
     [pendente]   = await sql`SELECT COALESCE(SUM(quantidade),0) as total FROM material_requests WHERE deleted_at IS NULL AND unidade='kg' AND DATE(deadline)=CURRENT_DATE AND status IN ('Pendente','Em Separação') AND (entregar_em='Salto' OR entregar_em='Camacari')`;
+  }
+
+  // ── Histórico por dia (todos os dias com movimentação em kg) ────────────────
+  let porDia;
+
+  if (isAdmin) {
+    porDia = await sql`
+      SELECT
+        DATE(deadline) as dia,
+        COALESCE(SUM(quantidade) FILTER (WHERE status NOT IN ('Cancelado','Recusado')), 0) as solicitado,
+        COALESCE(SUM(quantidade) FILTER (WHERE status = 'Concluído'), 0) as realizado,
+        COALESCE(SUM(quantidade) FILTER (WHERE status IN ('Pendente','Em Separação')), 0) as pendente
+      FROM material_requests
+      WHERE deleted_at IS NULL AND unidade = 'kg' AND deadline IS NOT NULL
+      GROUP BY DATE(deadline)
+      ORDER BY DATE(deadline) ASC
+    `;
+  } else if (isGrafica) {
+    porDia = await sql`
+      SELECT
+        DATE(deadline) as dia,
+        COALESCE(SUM(quantidade) FILTER (WHERE status NOT IN ('Cancelado','Recusado')), 0) as solicitado,
+        COALESCE(SUM(quantidade) FILTER (WHERE status = 'Concluído'), 0) as realizado,
+        COALESCE(SUM(quantidade) FILTER (WHERE status IN ('Pendente','Em Separação')), 0) as pendente
+      FROM material_requests
+      WHERE deleted_at IS NULL AND unidade = 'kg' AND deadline IS NOT NULL
+        AND (entregar_em IS NULL OR entregar_em = 'Grafica')
+      GROUP BY DATE(deadline)
+      ORDER BY DATE(deadline) ASC
+    `;
+  } else if (isFlexiveis) {
+    porDia = await sql`
+      SELECT
+        DATE(deadline) as dia,
+        COALESCE(SUM(quantidade) FILTER (WHERE status NOT IN ('Cancelado','Recusado')), 0) as solicitado,
+        COALESCE(SUM(quantidade) FILTER (WHERE status = 'Concluído'), 0) as realizado,
+        COALESCE(SUM(quantidade) FILTER (WHERE status IN ('Pendente','Em Separação')), 0) as pendente
+      FROM material_requests
+      WHERE deleted_at IS NULL AND unidade = 'kg' AND deadline IS NOT NULL
+        AND entregar_em = 'Flexiveis'
+      GROUP BY DATE(deadline)
+      ORDER BY DATE(deadline) ASC
+    `;
+  } else {
+    porDia = await sql`
+      SELECT
+        DATE(deadline) as dia,
+        COALESCE(SUM(quantidade) FILTER (WHERE status NOT IN ('Cancelado','Recusado')), 0) as solicitado,
+        COALESCE(SUM(quantidade) FILTER (WHERE status = 'Concluído'), 0) as realizado,
+        COALESCE(SUM(quantidade) FILTER (WHERE status IN ('Pendente','Em Separação')), 0) as pendente
+      FROM material_requests
+      WHERE deleted_at IS NULL AND unidade = 'kg' AND deadline IS NOT NULL
+        AND (entregar_em = 'Salto' OR entregar_em = 'Camacari')
+      GROUP BY DATE(deadline)
+      ORDER BY DATE(deadline) ASC
+    `;
   }
 
   // Capacidade diária configurada
@@ -501,7 +556,13 @@ async function handleCapacidadeHoje(event, sql, user) {
       capacidade_diaria_kg: capacidade,
       solicitado_kg: parseFloat(solicitado.total) || 0,
       realizado_kg: parseFloat(realizado.total) || 0,
-      pendente_kg: parseFloat(pendente.total) || 0
+      pendente_kg: parseFloat(pendente.total) || 0,
+      por_dia: porDia.map(r => ({
+        dia: r.dia instanceof Date ? r.dia.toISOString().split('T')[0] : String(r.dia).split('T')[0],
+        solicitado: parseFloat(r.solicitado) || 0,
+        realizado:  parseFloat(r.realizado)  || 0,
+        pendente:   parseFloat(r.pendente)   || 0
+      }))
     })
   };
 }
